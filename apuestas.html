@@ -1257,6 +1257,8 @@ function _onSyncUpdate(d){
     if(at2)at2.textContent='✅ Resultados autocargados: campeón '+d.champion+' · goleador: '+d.topScorer+'. Revisá y confirmá en Resultados.';
     // Mostrar toast si el usuario está en otra pestaña
     showToast('🏁 Pachanga terminada — resultados en Resultados','tinf');
+    // Reabrir apuestas para la siguiente jornada (solo si estaban cerradas, no si ya fueron resueltas)
+    if(S.status==='closed'){S.status='open';updateStatusBadge();saveStorage();showToast('\u2705 Jornada cerrada \u2014 apuestas reabiertas para la siguiente ronda','tok');}
   }
 }
 
@@ -3309,7 +3311,12 @@ function loadStorage(){
     const al=localStorage.getItem('pachanga_aliases_v4');if(al)S.aliases=JSON.parse(al);
     const c=localStorage.getItem('pachanga_cfg_v4');
     if(c){const cfg=JSON.parse(c);
-      S.rake=cfg.rake||.1;S.status=cfg.status||'open';S.orgPin=cfg.orgPin||'1234';S.orgUsername=cfg.orgUsername||'igna';
+      S.rake=cfg.rake||.1;
+      // Forzar status='open' al cargar salvo que haya jornada activa en curso
+      var _ls=cfg.status||'open';
+      if(_ls!=='open'){try{var _sc=JSON.parse(localStorage.getItem('pachanga_sync_v1')||'null');_ls=(_sc&&_sc.status==='active')?_ls:'open';}catch(e){}}
+      S.status=_ls;
+      S.orgPin=cfg.orgPin||'1234';S.orgUsername=cfg.orgUsername||'igna';
       S.alias=cfg.alias||'la.pachanga';S.mpNombre=cfg.mpNombre||'';
       S.orgUnlockedUntil=cfg.orgUnlockedUntil||0;
       // Restore org mode only if PIN session still valid
