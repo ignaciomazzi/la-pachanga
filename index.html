@@ -470,7 +470,7 @@ function attach(){
     // MVP edit buttons in hist tab
     if(S.rtab==='hist'){[...S.hist].reverse().forEach((j,ri)=>{on('rmvp'+ri,()=>{const jIdx=S.hist.length-1-ri;const pl=[...new Set((j.teams||[]).flatMap(t=>(t.players||[]).filter(p=>p&&p.trim())))];mMVP(pl,p=>{S.hist[jIdx].mvp=p;setHist(S.hist);render();});});
       on('rdel'+ri,()=>{const jIdx=S.hist.length-1-ri;mConfirm('\u00bfEliminar jornada?',esc(j.theme||j.date)+' \u2014 se perder\u00e1 permanentemente.',()=>{const nh=S.hist.filter((_,i)=>i!==jIdx);setHist(nh);render();},'Eliminar','btn-red');});
-    });});}
+    });}
     // profile buttons in ideal tab
     const ps=computeStats();const cr=Object.entries(ps).sort((a,b)=>b[1].champ-a[1].champ||b[1].mvps-a[1].mvps);cr.forEach(([p],i)=>{on('prp'+i,()=>mProfile(p));on('gprf'+i,()=>mProfile(p));});
     // profile buttons in perfiles tab
