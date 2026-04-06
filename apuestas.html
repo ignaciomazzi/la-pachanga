@@ -1000,20 +1000,50 @@ function _readPh9(){
    normaliza como probabilidades relativas y aplica rake.
    Devuelve {val, type:'hist'} o null si no hay datos suficientes.    */
 function _histSeedOdds(market,option){
-  if(market!=='goleador'&&market!=='primero')return null;
+  if(market!=='goleador'&&market!=='primero'&&market!=='campeon')return null;
   try{
     var ps=_getPlayerStats();
+    // ── Mercado campeón: xG por equipo sumando avg goles de cada jugador ──
+    if(market==='campeon'){
+      var teams=_getTeams();
+      var teamXG={};
+      var hasTeamData=false;
+      teams.forEach(function(t){
+        var xG=0;
+        (t.players||[]).filter(Boolean).forEach(function(p){
+          var s=ps[p];
+          var avg=0.7; // fallback Poisson
+          if(s&&s.pj>=3){
+            var tg=0,dist=s.dist||{};
+            for(var g=1;g<=5;g++)tg+=g*(dist[g]||0);
+            tg+=6.5*(dist[6]||0);
+            avg=tg/s.pj;
+            hasTeamData=true;
+          }
+          xG+=avg;
+        });
+        teamXG[t.name]=xG||0.7;
+      });
+      if(!hasTeamData)return null;
+      var totalXG=Object.keys(teamXG).reduce(function(s,k){return s+teamXG[k];},0);
+      if(totalXG<=0)return null;
+      var prob=(teamXG[option]||0.7)/totalXG;
+      prob=Math.min(0.95,Math.max(0.02,prob));
+      var val=Math.max(1.00,(1-S.rake)/prob);
+      return {val:parseFloat(val.toFixed(2)),type:'hist'};
+    }
+    // ── Mercados goleador / primero: promedio de goles por jornada ──
     var opts=mktOpts(market);
     if(!opts||opts.length===0)return null;
     var scores={};
     var hasData=false;
     opts.forEach(function(p){
       var s=ps[p];
-      if(s&&s.pj>=2){
+      if(s&&s.pj>=3){
         var totalGoals=0;
         var dist=s.dist||{};
         for(var g=1;g<=5;g++)totalGoals+=g*(dist[g]||0);
-        totalGoals+=6.5*(dist[6]||0); // bucket 6+ estimado
+        totalGoals+=6.5*(dist[6]||0);
         scores[p]=totalGoals/s.pj;
         hasData=true;
       }else{
