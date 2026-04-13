@@ -1,5 +1,7 @@
 {
   "rewrites": [
+    { "source": "/", "destination": "/index_local.html" },
+    { "source": "/v2", "destination": "/index_local_v2.html" },
     { "source": "/apuestas", "destination": "/apuestas.html" }
   ],
   "headers": [
