@@ -3578,32 +3578,62 @@ function updateHistDesc(){
   renderHistActiveOptions();
 }
 
+/* ── Closeness score para condición de goles (historico market) ──
+   Mide cuán cerca estuvo históricamente el jugador de cumplir la condición,
+   y mapea al mismo rango [1.0x, 3.0x] que el mercado goleador.
+   Sin historial → 1.50x. Siempre lo cumplió → 1.00x. Nunca cerca → 3.00x. */
+function _histCondSeedOdds(player,cond,threshold){
+  var hist=_readPh9();
+  if(!hist.length) return {val:1.50,type:'hist'};
+
+  var pj=0,scoreSum=0;
+  hist.forEach(function(j){
+    var jPlayers=(j.teams||[]).reduce(function(acc,t){
+      return acc.concat((t.players||[]).filter(Boolean));
+    },[]);
+    if(jPlayers.indexOf(player)===-1)return;
+    pj++;
+    var goals=(j.goals||{})[player]||0;
+    // Cercanía ∈ [0,1]: cuánto se acercó a cumplir la condición esta jornada
+    var closeness=0;
+    var thr=Math.max(1,threshold);
+    if(cond==='gte'||cond==='gt'){
+      var need=cond==='gt'?threshold+1:threshold;
+      closeness=Math.min(1,goals/Math.max(1,need));
+    }else if(cond==='lte'||cond==='lt'){
+      var limit=cond==='lt'?threshold-1:threshold;
+      closeness=goals<=limit?1:Math.max(0,limit/Math.max(1,goals));
+    }else if(cond==='eq'){
+      closeness=goals===threshold?1:Math.max(0,1-Math.abs(goals-threshold)/thr);
+    }
+    scoreSum+=closeness;
+  });
+
+  if(pj===0) return {val:1.50,type:'hist'};
+  var score=scoreSum/pj; // [0,1]: 0=nunca cumplió, 1=siempre lo cumplió
+  var val=1.00+2.00*(1-score); // score 0 → 3.00x, score 1 → 1.00x
+  return {val:parseFloat(Math.max(1.00,Math.min(3.00,val)).toFixed(2)),type:'hist'};
+}
+
 function _histGetOdds(optKey){
   const pool=S.oddsPool.historico||[];
   const total=pool.reduce((s,b)=>s+b.amount,0);
   const parts=optKey.split('|');
   const player=parts[0],cond=parts[1],threshold=parseInt(parts[2]);
 
-  // ── Sin apuestas reales: precio enteramente desde probabilidad ──
-  if(total===0){
-    const {freq,src}=_getFreq('player',player,null,cond,threshold);
-    const raw=parseFloat(((1-S.rake)/freq).toFixed(2));
-    return {val:Math.min(Math.max(1.00,raw),15.00),type:src};
-  }
-
   const poolFor=pool.filter(b=>b.option===optKey).reduce((s,b)=>s+b.amount,0);
 
-  // ── Con pool pero sin apuestas en esta opción: usar probabilidad ──
+  // Sin apuestas en esta opción → precio desde closeness histórica
   if(poolFor===0){
-    const {freq,src}=_getFreq('player',player,null,cond,threshold);
-    const raw=parseFloat(((1-S.rake)/freq).toFixed(2));
-    return {val:Math.min(Math.max(1.00,raw),15.00),type:src};
+    return _histCondSeedOdds(player,cond,threshold);
   }
 
-  // ── Con apuestas reales: parimutuel con virtual dampening ──
-  // El dampening se reparte proporcionalmente a la probabilidad de cada opción
-  // para que las odds seed sean coherentes con la dirección correcta.
+  // Con apuestas reales: parimutuel con virtual dampening ponderado por closeness seed
+  const seed=_histCondSeedOdds(player,cond,threshold);
+  // Convertir odds seed a peso relativo (inverso: odds bajas = mayor peso)
+  const seedWeight=1/(seed.val||1.5);
   const uniqueOpts=new Set(pool.map(b=>b.option));
+  // Peso base uniforme si no podemos calcular peso relativo
   const vPerOpt=ODDS_DAMP/Math.max(1,uniqueOpts.size);
   const adjFor=poolFor+vPerOpt;
   const adjTotal=total+ODDS_DAMP;
