@@ -952,7 +952,17 @@ function _getTeams(){
 // Todos los jugadores registrados (lista completa, para goleador/historial)
 function _getAllPlayers(){
   var d=_readSync();
-  return (d&&d.allPlayers&&d.allPlayers.length)?d.allPlayers:_PLAYERS_FB;
+  var base=(d&&d.allPlayers&&d.allPlayers.length)?[].concat(d.allPlayers):_PLAYERS_FB.slice();
+  // Merge players found in ph9 history (handles players added after sync snapshot)
+  try{
+    var seen={};base.forEach(function(p){seen[p]=true;});
+    _readPh9().forEach(function(j){
+      (j.teams||[]).forEach(function(t){
+        (t.players||[]).filter(Boolean).forEach(function(p){if(!seen[p]){seen[p]=true;base.push(p);}});
+      });
+    });
+  }catch(e){}
+  return base;
 }
 // Jugadores de la jornada en curso (para primer goleador)
 function _getJorpPlayers(){
@@ -1033,31 +1043,45 @@ function _histSeedOdds(market,option){
       var val=Math.max(1.00,(1-S.rake)/prob);
       return {val:parseFloat(val.toFixed(2)),type:'hist'};
     }
-    // ── Mercados goleador / primero: promedio de goles por jornada ──
+    // ── Mercados goleador / primero ──
+    // Métrica: closeness = avg(goals_jugador / max_goals_jornada) por jornada jugada
+    // Mide cuán cerca estuvo cada jugador de ser el goleador de la noche.
+    // Rango de odds: 1.00x (siempre fue top) → 3.00x (nunca metió un gol)
+    // Sin historial (disponible pero no jugó): 1.50x
+    var hist=_readPh9();
+    if(!hist.length)return null;
     var opts=mktOpts(market);
-    if(!opts||opts.length===0)return null;
-    var scores={};
-    var hasData=false;
-    opts.forEach(function(p){
-      var s=ps[p];
-      if(s&&s.pj>=3){
-        var totalGoals=0;
-        var dist=s.dist||{};
-        for(var g=1;g<=5;g++)totalGoals+=g*(dist[g]||0);
-        totalGoals+=6.5*(dist[6]||0);
-        scores[p]=totalGoals/s.pj;
-        hasData=true;
-      }else{
-        scores[p]=0.7; // lambda Poisson de respaldo
-      }
+    if(!opts||!opts.length)return null;
+
+    var data={};
+    opts.forEach(function(p){data[p]={pj:0,scoreSum:0};});
+
+    hist.forEach(function(j){
+      var goals=j.goals||{};
+      var maxG=0;
+      Object.keys(goals).forEach(function(p){if((goals[p]||0)>maxG)maxG=goals[p];});
+      if(maxG<1)maxG=1;
+
+      var jPlayers=(j.teams||[]).reduce(function(acc,t){
+        return acc.concat((t.players||[]).filter(Boolean));
+      },[]);
+
+      jPlayers.forEach(function(p){
+        if(!data[p])data[p]={pj:0,scoreSum:0};
+        data[p].pj++;
+        data[p].scoreSum+=(goals[p]||0)/maxG;
+      });
     });
-    if(!hasData)return null;
-    var total=opts.reduce(function(sum,p){return sum+(scores[p]||0.7);},0);
-    if(total<=0)return null;
-    var prob=(scores[option]||0.7)/total;
-    prob=Math.min(0.95,Math.max(0.02,prob));
-    var val=Math.max(1.00,(1-S.rake)/prob);
-    return {val:parseFloat(val.toFixed(2)),type:'hist'};
+
+    var d=data[option];
+    // Sin participación en ninguna jornada → seed neutro 1.50x
+    if(!d||d.pj===0)return{val:1.50,type:'hist'};
+
+    // score ∈ [0,1]: 0 = nunca metió gol, 1 = siempre fue el goleador máximo
+    var score=d.scoreSum/d.pj;
+    // Mapeo lineal inverso: score 0 → 3.00x  |  score 1 → 1.00x
+    var val=1.00+2.00*(1-score);
+    return{val:parseFloat(Math.max(1.00,Math.min(3.00,val)).toFixed(2)),type:'hist'};
   }catch(e){}
   return null;
 }
