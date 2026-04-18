@@ -405,6 +405,7 @@ input[type=range]::-webkit-slider-thumb{appearance:none;width:20px;height:20px;b
   <div class="ib ie" style="margin-bottom:0px;"><span class="ibi">⚖️</span><span style="font-size:10px;">Se prohíbe el complot entre participantes. Actividad sospechosa puede resultar en baneo permanente.</span></div>
   <div class="ib ibl" id="autofill-banner" style="display:none;"><span class="ibi">⚡</span><span id="autofill-text"></span></div>
   <div style="font-size:10px;color:var(--text3);padding:3px 0 6px;" id="sync-status"></div>
+  <div id="stats-status" style="display:none;align-items:center;justify-content:space-between;padding:5px 0 4px;"></div>
   <div class="stitle"><span>PACHABETS</span> · <span id="jornadaDate" style="color:var(--text2);font-size:14px;">28 MAR</span></div>
 
   <div class="card">
@@ -1061,6 +1062,36 @@ function _histSeedOdds(market,option){
   return null;
 }
 
+/* ── Indicador de stats y refresh manual ── */
+function _refreshStats(){
+  _cachedPh9=null; // forzar re-lectura desde localStorage
+  renderMarket('campeon');renderMarket('goleador');renderMarket('primero');
+  _updateStatsStatus();
+  showToast('📊 Stats actualizadas','tok');
+}
+
+function _updateStatsStatus(){
+  var el=document.getElementById('stats-status');
+  if(!el)return;
+  try{
+    var hist=JSON.parse(localStorage.getItem('ph9')||'[]');
+    var n=hist.length;
+    if(n===0){el.style.display='none';return;}
+    // Compute league avg
+    var ps=_getPlayerStats();
+    var avgs=Object.values(ps).filter(function(s){return s.pj>=3;}).map(function(s){
+      var t=0,d=s.dist||{};
+      for(var g=1;g<=5;g++)t+=g*(d[g]||0);
+      t+=6.5*(d[6]||0);
+      return t/s.pj;
+    });
+    var leagueAvg=avgs.length?avgs.reduce(function(a,b){return a+b;},0)/avgs.length:0;
+    el.style.display='flex';
+    el.innerHTML='<span style="font-size:10px;color:var(--text3);">📊 <strong style="color:var(--green);">'+n+' jornadas</strong> cargadas · prom. liga <strong style="color:var(--text2);">'+leagueAvg.toFixed(2)+'</strong> goles/j</span>'
+      +'<button onclick="_refreshStats()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:10px;color:var(--text3);cursor:pointer;" title="Recargar stats desde La Pachanga">🔄 Actualizar</button>';
+  }catch(e){el.style.display='none';}
+}
+
 /* ── Pesos de gol normalizados para dampening parimutuel ──
    Reutiliza _getPlayerStats() para sesgar el virtual pool hacia
    los goleadores históricos. Devuelve {player: weight} sumando 1,
@@ -1572,7 +1603,7 @@ function showScreen(id){
     const fn=ud?.fullName||AUTH.currentUser;
     renderMyBets(fn);
   }
-  if(id==='apostar'){populateHistPlayerSelect();populateEqTeamSelects();renderHistActiveOptions();}
+  if(id==='apostar'){_updateStatsStatus();populateHistPlayerSelect();populateEqTeamSelects();renderHistActiveOptions();}
   if(id==='historial') renderHistorial();
   if(id==='jornada-org') renderJornadaOrg();
   if(id==='resultados'){renderPropsResolution();renderNewMarketsResolution();}
@@ -1595,6 +1626,7 @@ function populateSelects(){
 
 /* ══ RENDER ALL ══ */
 function renderAll(){
+  _updateStatsStatus();
   renderMarket('campeon'); renderMarket('goleador'); renderMarket('primero');
   renderCart(); renderProps(); renderCobros(); renderPagos();
   updatePool(); updateStatusBadge(); updateEBBadge();
