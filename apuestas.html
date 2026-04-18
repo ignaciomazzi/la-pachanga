@@ -1061,6 +1061,37 @@ function _histSeedOdds(market,option){
   return null;
 }
 
+/* ── Pesos de gol normalizados para dampening parimutuel ──
+   Reutiliza _getPlayerStats() para sesgar el virtual pool hacia
+   los goleadores históricos. Devuelve {player: weight} sumando 1,
+   o null si no hay datos suficientes.                            */
+function _getGoalWeights(opts){
+  try{
+    var ps=_getPlayerStats();
+    var scores={};
+    var hasData=false;
+    opts.forEach(function(p){
+      var s=ps[p];
+      if(s&&s.pj>=3){
+        var totalGoals=0;
+        var dist=s.dist||{};
+        for(var g=1;g<=5;g++)totalGoals+=g*(dist[g]||0);
+        totalGoals+=6.5*(dist[6]||0);
+        scores[p]=totalGoals/s.pj;
+        hasData=true;
+      }else{
+        scores[p]=0.7; // Poisson fallback
+      }
+    });
+    if(!hasData)return null;
+    var total=opts.reduce(function(sum,p){return sum+(scores[p]||0.7);},0);
+    if(total<=0)return null;
+    var weights={};
+    opts.forEach(function(p){weights[p]=(scores[p]||0.7)/total;});
+    return weights;
+  }catch(e){return null;}
+}
+
 /* ── Estadísticas por jugador (construidas desde ph9) ── */
 function _getPlayerStats(){
   try{
@@ -1637,9 +1668,16 @@ function getOdds(market,option){
   // No real bets on this specific option → use stats-based seed (stable, prevents parimutuel instability)
   if(realFor===0){const hs=_histSeedOdds(market,option);return hs||{val:SEED_ODDS_CAP,type:'seed'};}
 
-  // Real bets on this option → parimutuel with virtual dampening
+  // Real bets on this option → parimutuel with stats-weighted virtual dampening
   const realTotal=pool.reduce((s,b)=>s+b.amount,0);
-  const vPerOption=ODDS_DAMP/n;
+  const opts=mktOpts(market);
+  let vPerOption;
+  if(market==='goleador'||market==='primero'||market==='campeon'){
+    const weights=_getGoalWeights(opts);
+    vPerOption=(weights&&weights[option]!=null)?ODDS_DAMP*weights[option]:ODDS_DAMP/n;
+  }else{
+    vPerOption=ODDS_DAMP/n;
+  }
   const adjustedFor=realFor+vPerOption;
   const adjustedTotal=realTotal+ODDS_DAMP;
   const adjustedContra=adjustedTotal-adjustedFor;
@@ -1712,14 +1750,39 @@ function renderMarket(m){
 
 function selectOpt(m,o){S.sel[m]=o;renderMarket(m);updatePreview(m);}
 
-// Hot/Cold: based on betting activity in oddsPool (proxy until stats integration)
+// Hot/Cold: usa stats históricas de ph9; fallback a actividad de apuestas
 // Returns 'hot' | 'cold' | null
 function getPlayerTemp(playerName){
+  try{
+    var ps=_getPlayerStats();
+    var s=ps[playerName];
+    if(s&&s.pj>=3){
+      var totalGoals=0,dist=s.dist||{};
+      for(var g=1;g<=5;g++)totalGoals+=g*(dist[g]||0);
+      totalGoals+=6.5*(dist[6]||0);
+      var avg=totalGoals/s.pj;
+      // League average across all players with data
+      var allAvgs=Object.values(ps).filter(function(x){return x.pj>=3;}).map(function(x){
+        var t=0,d=x.dist||{};
+        for(var i=1;i<=5;i++)t+=i*(d[i]||0);
+        t+=6.5*(d[6]||0);
+        return t/x.pj;
+      });
+      if(allAvgs.length>0){
+        var leagueAvg=allAvgs.reduce(function(a,b){return a+b;},0)/allAvgs.length;
+        if(leagueAvg>0){
+          if(avg>leagueAvg*1.6) return 'hot';
+          if(avg<leagueAvg*0.35) return 'cold';
+        }
+      }
+      return null;
+    }
+  }catch(e){}
+  // Fallback: proxy via betting activity
   if(!S.oddsPool) return null;
-  // Count total bet on this player across goleador + primero markets
   const allPool=[...(S.oddsPool.goleador||[]),...(S.oddsPool.primero||[])];
   const total=allPool.reduce((s,b)=>s+b.amount,0);
-  if(total<5000) return null; // not enough data
+  if(total<5000) return null;
   const forPlayer=allPool.filter(b=>b.option===playerName).reduce((s,b)=>s+b.amount,0);
   const avgShare=total/Math.max(1,new Set(allPool.map(b=>b.option)).size);
   if(forPlayer>avgShare*2.0) return 'hot';
