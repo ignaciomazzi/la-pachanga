@@ -8,6 +8,15 @@
 <meta name="apple-mobile-web-app-title" content="La Pachanga">
 <meta name="theme-color" content="#060c06">
 <title>La Pachanga ⚽</title>
+<link rel="icon" type="image/svg+xml" id="ps-fv2">
+<script>
+(function(){
+  var s='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180"><defs><linearGradient id="sa" x1="16" y1="14" x2="164" y2="172" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#0E2012"/><stop offset="100%" stop-color="#071009"/></linearGradient><linearGradient id="sb" x1="16" y1="14" x2="164" y2="172" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#C4991A"/><stop offset="100%" stop-color="#9A7510"/></linearGradient><linearGradient id="sc" x1="50" y1="150" x2="140" y2="52" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#EEF2E6" stop-opacity=".58"/><stop offset="100%" stop-color="#EEF2E6" stop-opacity=".95"/></linearGradient><filter id="sf"><feGaussianBlur stdDeviation="5" result="bl"/><feMerge><feMergeNode in="bl"/><feMergeNode in="SourceGraphic"/></feMerge></filter><clipPath id="sk"><path d="M90 14 L164 40 L164 106 Q164 156 90 172 Q16 156 16 106 L16 40 Z"/></clipPath></defs><path d="M90 14 L164 40 L164 106 Q164 156 90 172 Q16 156 16 106 L16 40 Z" fill="url(#sa)"/><path d="M90 14 L164 40 L164 106 Q164 156 90 172 Q16 156 16 106 L16 40 Z" fill="none" stroke="url(#sb)" stroke-width="3" stroke-linejoin="round"/><g clip-path="url(#sk)"><rect x="42" y="112" width="22" height="38" rx="3.5" fill="url(#sc)"/><rect x="79" y="82" width="22" height="68" rx="3.5" fill="url(#sc)"/><rect x="116" y="52" width="22" height="98" rx="3.5" fill="url(#sc)"/><line x1="34" y1="150" x2="146" y2="150" stroke="#EEF2E6" stroke-width="1.5" opacity=".12"/></g><circle cx="127" cy="52" r="11" fill="#C4991A" filter="url(#sf)" opacity=".55"/><circle cx="127" cy="52" r="7.5" fill="#C4991A"/><circle cx="127" cy="52" r="3" fill="#EEF2E6"/></svg>';
+  var bl=new Blob([s],{type:'image/svg+xml'});var u=URL.createObjectURL(bl);
+  document.getElementById('ps-fv2').href=u;
+  var im=new Image();im.onload=function(){var cv=document.createElement('canvas');cv.width=cv.height=180;cv.getContext('2d').drawImage(im,0,0);var lk=document.createElement('link');lk.rel='apple-touch-icon';lk.href=cv.toDataURL('image/png');document.head.appendChild(lk);URL.revokeObjectURL(u);};im.src=u;
+})();
+</script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
@@ -710,9 +719,10 @@ function vHome(){
 
   return'<div class="page">'
     +'<div style="padding:22px 16px 4px;display:flex;align-items:center;justify-content:space-between">'
+    +'<div style="display:flex;align-items:center;gap:12px"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" width="42" height="42" fill="none"><defs><linearGradient id="v2-sa" x1="16" y1="14" x2="164" y2="172" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#0E2012"/><stop offset="100%" stop-color="#071009"/></linearGradient><linearGradient id="v2-sb" x1="16" y1="14" x2="164" y2="172" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#C4991A"/><stop offset="100%" stop-color="#9A7510"/></linearGradient><linearGradient id="v2-sc" x1="50" y1="150" x2="140" y2="52" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#EEF2E6" stop-opacity=".58"/><stop offset="100%" stop-color="#EEF2E6" stop-opacity=".95"/></linearGradient><filter id="v2-sf"><feGaussianBlur stdDeviation="5" result="bl"/><feMerge><feMergeNode in="bl"/><feMergeNode in="SourceGraphic"/></feMerge></filter><clipPath id="v2-sk"><path d="M90 14 L164 40 L164 106 Q164 156 90 172 Q16 156 16 106 L16 40 Z"/></clipPath></defs><path d="M90 14 L164 40 L164 106 Q164 156 90 172 Q16 156 16 106 L16 40 Z" fill="url(#v2-sa)"/><path d="M90 14 L164 40 L164 106 Q164 156 90 172 Q16 156 16 106 L16 40 Z" fill="none" stroke="url(#v2-sb)" stroke-width="3" stroke-linejoin="round"/><g clip-path="url(#v2-sk)"><rect x="42" y="112" width="22" height="38" rx="3.5" fill="url(#v2-sc)"/><rect x="79" y="82" width="22" height="68" rx="3.5" fill="url(#v2-sc)"/><rect x="116" y="52" width="22" height="98" rx="3.5" fill="url(#v2-sc)"/></g><circle cx="127" cy="52" r="11" fill="#C4991A" filter="url(#v2-sf)" opacity=".55"/><circle cx="127" cy="52" r="7.5" fill="#C4991A"/><circle cx="127" cy="52" r="3" fill="#EEF2E6"/></svg>'
     +'<div><div style="font-family:\'Anton\',sans-serif;font-size:30px;letter-spacing:.02em">La Pachanga</div>'
     +'<div style="font-size:12px;color:var(--txt2);margin-top:2px">'+new Date().toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'})+'</div>'
-    +'</div>'
+    +'</div></div>'
     +(cur?'<span class="badge bg-green"><div class="ldot" style="width:6px;height:6px"></div>En vivo</span>':'')
     +'</div>'
     +heroSection+champSection+statsSection+quickLinks
