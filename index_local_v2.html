@@ -1163,10 +1163,32 @@ function render(){
 function g(id){return document.getElementById(id);}
 function on(id,fn){const el=g(id);if(el)el.onclick=fn;}
 
+function migratePlayerName(oldName,newName){
+  if(!oldName||!newName||oldName===newName)return;
+  function mj(j){
+    (j.teams||[]).forEach(function(t){if(t.players){for(var i=0;i<t.players.length;i++){if(t.players[i]===oldName)t.players[i]=newName;}}});
+    if(j.goals&&j.goals[oldName]!==undefined){j.goals[newName]=(j.goals[newName]||0)+j.goals[oldName];delete j.goals[oldName];}
+    (j.events||[]).forEach(function(e){if(e.player===oldName)e.player=newName;});
+    if(j.mvp===oldName)j.mvp=newName;
+    if(j.gk){var gk2={};Object.keys(j.gk).forEach(function(k){gk2[k]=j.gk[k]===oldName?newName:j.gk[k];});j.gk=gk2;}
+    (j.matches||[]).forEach(function(m){if(m.gk){Object.keys(m.gk).forEach(function(k){if(m.gk[k]===oldName)m.gk[k]=newName;});}});
+    return j;
+  }
+  if(S.hist&&S.hist.length){var nh=S.hist.map(function(j){return mj(cp(j));});S.hist=nh;sh(nh);}
+  if(S.cur){var nc=mj(cp(S.cur));setCur(nc);}
+}
 function saveEdit(){
   const ei=g('eei'),en=g('eenk');
   const n=(ei?ei.value.trim():S.eval_);const nk=(en?en.value.trim():S.enick);
-  if(n){const old=S.eplist[S.eidx];const newNicks=Object.assign({},S.nicks);if(newNicks[old]!==undefined&&n!==old)delete newNicks[n];if(nk){newNicks[n]=nk;}else{delete newNicks[n];}S.nicks=newNicks;svNicks(newNicks);S.eplist[S.eidx]=n;S.eplist=sbl([...S.eplist]);S.eidx=null;render();}
+  if(n){
+    const old=S.eplist[S.eidx];
+    const newNicks=Object.assign({},S.nicks);
+    if(old!==n){delete newNicks[old];}
+    if(nk){newNicks[n]=nk;}else{delete newNicks[n];}
+    S.nicks=newNicks;svNicks(newNicks);
+    if(old!==n)migratePlayerName(old,n);
+    S.eplist[S.eidx]=n;S.eplist=sbl([...S.eplist]);S.eidx=null;render();
+  }
 }
 
 function attach(){
