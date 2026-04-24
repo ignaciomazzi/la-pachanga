@@ -19,18 +19,20 @@
 <link rel="icon" type="image/png" id="ps-fv2-png">
 <script>
 (function(){try{var cv=document.createElement('canvas');cv.width=cv.height=180;var c=cv.getContext('2d');
-c.fillStyle='#060c06';c.fillRect(0,0,180,180);
-var rg=c.createRadialGradient(68,50,5,90,90,80);rg.addColorStop(0,'#1A3020');rg.addColorStop(1,'#06100A');
-c.beginPath();c.arc(90,90,74,0,Math.PI*2);c.fillStyle=rg;c.fill();
-c.beginPath();c.arc(90,90,74,0,Math.PI*2);c.strokeStyle='#C4991A';c.lineWidth=2.5;c.stroke();
-c.save();c.beginPath();c.arc(90,90,74,0,Math.PI*2);c.clip();
-var bg=c.createLinearGradient(50,150,140,48);bg.addColorStop(0,'rgba(238,242,230,.55)');bg.addColorStop(1,'rgba(238,242,230,.94)');
-c.fillStyle=bg;[[40,108,22,42],[79,76,22,74],[118,46,22,104]].forEach(function(b){c.beginPath();c.roundRect(b[0],b[1],b[2],b[3],3.5);c.fill();});
+c.fillStyle='#1a1200';c.fillRect(0,0,180,180);
+var sp=new Path2D('M90 14 L164 40 L164 106 Q164 156 90 172 Q16 156 16 106 L16 40 Z');
+var sf=c.createLinearGradient(16,14,164,172);sf.addColorStop(0,'#0E2012');sf.addColorStop(1,'#071009');
+c.fillStyle=sf;c.fill(sp);
+var ss=c.createLinearGradient(16,14,164,172);ss.addColorStop(0,'#C4991A');ss.addColorStop(1,'#9A7510');
+c.strokeStyle=ss;c.lineWidth=3;c.stroke(sp);
+c.save();c.clip(sp);
+var bg=c.createLinearGradient(50,150,140,52);bg.addColorStop(0,'rgba(238,242,230,.58)');bg.addColorStop(1,'rgba(238,242,230,.95)');
+c.fillStyle=bg;[[42,112,22,38],[79,82,22,68],[116,52,22,98]].forEach(function(b){c.beginPath();c.roundRect(b[0],b[1],b[2],b[3],3.5);c.fill();});
 c.restore();
-var dg=c.createRadialGradient(129,46,0,129,46,11);dg.addColorStop(0,'rgba(196,153,26,.55)');dg.addColorStop(1,'rgba(196,153,26,0)');
-c.beginPath();c.arc(129,46,11,0,Math.PI*2);c.fillStyle=dg;c.fill();
-c.beginPath();c.arc(129,46,7.5,0,Math.PI*2);c.fillStyle='#C4991A';c.fill();
-c.beginPath();c.arc(129,46,3,0,Math.PI*2);c.fillStyle='#EEF2E6';c.fill();
+var dg=c.createRadialGradient(127,52,0,127,52,11);dg.addColorStop(0,'rgba(196,153,26,.55)');dg.addColorStop(1,'rgba(196,153,26,0)');
+c.beginPath();c.arc(127,52,11,0,Math.PI*2);c.fillStyle=dg;c.fill();
+c.beginPath();c.arc(127,52,7.5,0,Math.PI*2);c.fillStyle='#C4991A';c.fill();
+c.beginPath();c.arc(127,52,3,0,Math.PI*2);c.fillStyle='#EEF2E6';c.fill();
 var png=cv.toDataURL('image/png');
 document.getElementById('ps-fv2-png').href=png;
 var ai=document.createElement('link');ai.rel='apple-touch-icon';ai.href=png;document.head.appendChild(ai);
