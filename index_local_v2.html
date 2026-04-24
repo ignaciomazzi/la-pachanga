@@ -384,7 +384,7 @@ var _gExpAll=false;
 
 if(_db){_db.collection('jornada').doc('cur').onSnapshot(function(snap){if(S.cur&&!_fromFs)return;var d=(snap.exists&&snap.data()&&snap.data().data)||null;if(d){var wasNull=!S.cur;S.cur=d;_fromFs=true;try{localStorage.setItem(SK_C,JSON.stringify(d));}catch(e){}if(wasNull)render();}else if(_fromFs){S.cur=null;_fromFs=false;try{localStorage.removeItem(SK_C);}catch(e){}render();}});}
 if(_db){_db.collection('historial').doc('all').onSnapshot(function(snap){var d=(snap.exists&&snap.data()&&snap.data().data)||null;if(!d||!Array.isArray(d)||!d.length)return;if(JSON.stringify(d)===JSON.stringify(S.hist))return;S.hist=d;try{localStorage.setItem(SK_H,JSON.stringify(d));}catch(e){}render();});}
-if(_db){_db.collection('config').doc('players').onSnapshot(function(snap){var d=(snap.exists&&snap.data()&&snap.data().data)||null;if(!d||!Array.isArray(d)||!d.length)return;if(JSON.stringify(d)===JSON.stringify(S.players))return;S.players=d;try{localStorage.setItem(SK_P,JSON.stringify(d));}catch(e){}});}
+if(_db){_db.collection('config').doc('players').onSnapshot(function(snap){var d=(snap.exists&&snap.data()&&snap.data().data)||null;if(!d||!Array.isArray(d)||!d.length)return;if(!S.players||!S.players.length){S.players=d;try{localStorage.setItem(SK_P,JSON.stringify(d));}catch(e){}return;}var _new=d.filter(function(p){return S.players.indexOf(p)<0;});if(!_new.length)return;var _mp=sbl(S.players.concat(_new));S.players=_mp;try{localStorage.setItem(SK_P,JSON.stringify(_mp));}catch(e){}});}
 
 // Auto-merge: agregar jugadores nuevos del DP que no estén en la lista
 (function(){var _new=DP.filter(function(p){return S.players.indexOf(p)<0;});if(_new.length){var _mp=sbl(S.players.concat(_new));S.players=_mp;sp(_mp);}})();
