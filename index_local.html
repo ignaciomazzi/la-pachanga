@@ -8,14 +8,25 @@
 <meta name="apple-mobile-web-app-title" content="La Pachanga">
 <meta name="theme-color" content="#070e07">
 <title>La Pachanga \u26bd</title>
-<link rel="icon" type="image/svg+xml" id="ps-fv">
+<link rel="icon" type="image/png" id="ps-fv">
 <script>
-(function(){
-  var s='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180"><defs><radialGradient id="a" cx="38%" cy="28%" r="72%" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#1A3020"/><stop offset="100%" stop-color="#06100A"/></radialGradient><linearGradient id="b" x1="16" y1="16" x2="164" y2="164" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#C4991A"/><stop offset="100%" stop-color="#9A7510"/></linearGradient><linearGradient id="c" x1="50" y1="150" x2="140" y2="48" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#EEF2E6" stop-opacity=".55"/><stop offset="100%" stop-color="#EEF2E6" stop-opacity=".94"/></linearGradient><filter id="gf"><feGaussianBlur stdDeviation="5" result="bl"/><feMerge><feMergeNode in="bl"/><feMergeNode in="SourceGraphic"/></feMerge></filter><clipPath id="bk"><circle cx="90" cy="90" r="74"/></clipPath></defs><circle cx="90" cy="90" r="74" fill="url(#a)"/><g opacity=".13" stroke="#EEF2E6" stroke-width="1.4" fill="none" clip-path="url(#bk)"><polygon points="90,44 114,60 105,88 75,88 66,60" stroke-linejoin="round"/><line x1="90" y1="44" x2="90" y2="16"/><line x1="114" y1="60" x2="150" y2="46"/><line x1="105" y1="88" x2="138" y2="116"/><line x1="75" y1="88" x2="42" y2="116"/><line x1="66" y1="60" x2="30" y2="46"/><path d="M42,116 Q58,148 90,158 Q122,148 138,116"/></g><circle cx="90" cy="90" r="74" fill="none" stroke="url(#b)" stroke-width="2.5"/><g clip-path="url(#bk)"><rect x="40" y="108" width="22" height="42" rx="3.5" fill="url(#c)"/><rect x="79" y="76" width="22" height="74" rx="3.5" fill="url(#c)"/><rect x="118" y="46" width="22" height="104" rx="3.5" fill="url(#c)"/></g><circle cx="129" cy="46" r="11" fill="#C4991A" filter="url(#gf)" opacity=".55"/><circle cx="129" cy="46" r="7.5" fill="#C4991A"/><circle cx="129" cy="46" r="3" fill="#EEF2E6"/></svg>';
-  var bl=new Blob([s],{type:'image/svg+xml'});var u=URL.createObjectURL(bl);
-  document.getElementById('ps-fv').href=u;
-  var im=new Image();im.onload=function(){var cv=document.createElement('canvas');cv.width=cv.height=180;cv.getContext('2d').drawImage(im,0,0);var lk=document.createElement('link');lk.rel='apple-touch-icon';lk.href=cv.toDataURL('image/png');document.head.appendChild(lk);URL.revokeObjectURL(u);};im.src=u;
-})();
+(function(){try{var cv=document.createElement('canvas');cv.width=cv.height=180;var c=cv.getContext('2d');
+c.fillStyle='#060c06';c.fillRect(0,0,180,180);
+var rg=c.createRadialGradient(68,50,5,90,90,80);rg.addColorStop(0,'#1A3020');rg.addColorStop(1,'#06100A');
+c.beginPath();c.arc(90,90,74,0,Math.PI*2);c.fillStyle=rg;c.fill();
+c.beginPath();c.arc(90,90,74,0,Math.PI*2);c.strokeStyle='#C4991A';c.lineWidth=2.5;c.stroke();
+c.save();c.beginPath();c.arc(90,90,74,0,Math.PI*2);c.clip();
+var bg=c.createLinearGradient(50,150,140,48);bg.addColorStop(0,'rgba(238,242,230,.55)');bg.addColorStop(1,'rgba(238,242,230,.94)');
+c.fillStyle=bg;[[40,108,22,42],[79,76,22,74],[118,46,22,104]].forEach(function(b){c.beginPath();c.roundRect(b[0],b[1],b[2],b[3],3.5);c.fill();});
+c.restore();
+var dg=c.createRadialGradient(129,46,0,129,46,11);dg.addColorStop(0,'rgba(196,153,26,.55)');dg.addColorStop(1,'rgba(196,153,26,0)');
+c.beginPath();c.arc(129,46,11,0,Math.PI*2);c.fillStyle=dg;c.fill();
+c.beginPath();c.arc(129,46,7.5,0,Math.PI*2);c.fillStyle='#C4991A';c.fill();
+c.beginPath();c.arc(129,46,3,0,Math.PI*2);c.fillStyle='#EEF2E6';c.fill();
+var png=cv.toDataURL('image/png');
+document.getElementById('ps-fv').href=png;
+var ai=document.createElement('link');ai.rel='apple-touch-icon';ai.href=png;document.head.appendChild(ai);
+}catch(e){}})();
 </script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>

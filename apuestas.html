@@ -4,6 +4,32 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <title>PachaBets</title>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="PachaBets"/>
+<meta name="theme-color" content="#0e0f13"/>
+<link rel="icon" type="image/png" id="pb-fv">
+<script>
+(function(){try{var cv=document.createElement('canvas');cv.width=cv.height=180;var c=cv.getContext('2d');
+c.fillStyle='#1a1200';c.fillRect(0,0,180,180);
+var sp=new Path2D('M90 14 L164 40 L164 106 Q164 156 90 172 Q16 156 16 106 L16 40 Z');
+var sf=c.createLinearGradient(16,14,164,172);sf.addColorStop(0,'#0E2012');sf.addColorStop(1,'#071009');
+c.fillStyle=sf;c.fill(sp);
+var ss=c.createLinearGradient(16,14,164,172);ss.addColorStop(0,'#C4991A');ss.addColorStop(1,'#9A7510');
+c.strokeStyle=ss;c.lineWidth=3;c.stroke(sp);
+c.save();c.clip(sp);
+var bg=c.createLinearGradient(50,150,140,52);bg.addColorStop(0,'rgba(238,242,230,.58)');bg.addColorStop(1,'rgba(238,242,230,.95)');
+c.fillStyle=bg;[[42,112,22,38],[79,82,22,68],[116,52,22,98]].forEach(function(b){c.beginPath();c.roundRect(b[0],b[1],b[2],b[3],3.5);c.fill();});
+c.restore();
+var dg=c.createRadialGradient(127,52,0,127,52,11);dg.addColorStop(0,'rgba(196,153,26,.55)');dg.addColorStop(1,'rgba(196,153,26,0)');
+c.beginPath();c.arc(127,52,11,0,Math.PI*2);c.fillStyle=dg;c.fill();
+c.beginPath();c.arc(127,52,7.5,0,Math.PI*2);c.fillStyle='#C4991A';c.fill();
+c.beginPath();c.arc(127,52,3,0,Math.PI*2);c.fillStyle='#EEF2E6';c.fill();
+var png=cv.toDataURL('image/png');
+document.getElementById('pb-fv').href=png;
+var ai=document.createElement('link');ai.rel='apple-touch-icon';ai.href=png;document.head.appendChild(ai);
+}catch(e){}})();
+</script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <style>
