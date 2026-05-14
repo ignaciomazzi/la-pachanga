@@ -1722,7 +1722,7 @@ function renderAll(){
 /* ══ ODDS ENGINE ══ */
 function mktOpts(m){
   if(m==='campeon')  return _getTeams().map(function(t){return t.name;});
-  if(m==='goleador') return _getAllPlayers();
+  if(m==='goleador') return _getJorpPlayers();
   if(m==='primero')  return _getJorpPlayers();
   return[];
 }
