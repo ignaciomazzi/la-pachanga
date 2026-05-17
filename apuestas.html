@@ -335,6 +335,13 @@ input[type=range]::-webkit-slider-thumb{appearance:none;width:20px;height:20px;b
 .int-note{background:#0a0d1a;border:1px solid #1e2a4a;border-radius:var(--r);padding:11px 13px;font-family:var(--mono);font-size:10px;color:#5e7ac8;line-height:1.6;}
 .int-note strong{color:#8fa8e8;display:block;margin-bottom:3px;}
 @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+/* ══ SANDBOX ══ */
+#sandbox-banner{display:none;align-items:center;gap:8px;background:#f59e0b;color:#000;padding:7px 12px;font-size:12px;font-weight:700;flex-shrink:0;}
+#sandbox-banner .sb-label{font-size:10px;font-weight:400;color:rgba(0,0,0,.65);}
+#sandbox-banner select{font-size:11px;padding:3px 6px;border-radius:5px;border:none;background:rgba(0,0,0,.15);color:#000;font-family:var(--font);max-width:130px;}
+#sandbox-banner button{font-size:11px;padding:3px 9px;border-radius:5px;border:none;cursor:pointer;font-family:var(--font);font-weight:700;}
+#sandbox-banner .sb-reset{background:rgba(0,0,0,.15);color:#000;}
+#sandbox-banner .sb-exit{background:rgba(0,0,0,.30);color:#000;}
 </style>
 </head>
 <body>
@@ -425,6 +432,17 @@ input[type=range]::-webkit-slider-thumb{appearance:none;width:20px;height:20px;b
 </header>
 
 <nav class="nav-tabs" id="nav-tabs"></nav>
+
+<!-- SANDBOX BANNER -->
+<div id="sandbox-banner">
+  <span>🧪 MODO PRUEBA</span>
+  <span class="sb-label">sin efecto en datos reales</span>
+  <span style="flex:1"></span>
+  <label style="font-size:10px;font-weight:400;margin-right:2px;">Simular como:</label>
+  <select id="sb-player-sel" onchange="sandboxSwitchPlayer(this.value)"></select>
+  <button class="sb-reset" onclick="resetSandbox()">Reiniciar</button>
+  <button class="sb-exit" onclick="exitSandbox()">✕ Salir</button>
+</div>
 
 <!-- APOSTAR -->
 <div class="screen" id="screen-apostar">
@@ -827,6 +845,15 @@ input[type=range]::-webkit-slider-thumb{appearance:none;width:20px;height:20px;b
       <div class="tcol"><button class="btn bk" onclick="setStatus('open')">● Abrir</button><button class="btn bd" onclick="setStatus('closed')">◼ Cerrar</button></div>
       <button class="btn bd bf" onclick="resetAll()">🗑 Reiniciar jornada (siguiente viernes)</button>
       <button class="btn bd bf" style="margin-top:6px;opacity:.7;" onclick="resetEverything()">💥 Borrar todo (historial incluido)</button>
+    </div>
+  </div>
+
+  <!-- Modo Prueba -->
+  <div class="card org-c">
+    <div class="ch"><span class="ci">🧪</span><span class="ct">Modo Prueba</span></div>
+    <div class="cb" style="display:flex;flex-direction:column;gap:8px;">
+      <div class="ib ipu"><span class="ibi">💡</span><span>Simulá apuestas, odds y resoluciones sin tocar los datos reales. El historial de PachaStats se usa como semilla (solo lectura). Al salir, todo se descarta.</span></div>
+      <button class="btn bo bf" onclick="enterSandbox()">🧪 Entrar a modo prueba</button>
     </div>
   </div>
 
@@ -1469,6 +1496,13 @@ function updateJornadaDateDisplay(){
   const el=document.getElementById('jornadaDate');
   if(el) el.textContent=formatJornadaDate(S.jornadaDate);
 }
+
+/* ══ SANDBOX ══ */
+var SANDBOX = false;           // true = modo prueba activo
+var SANDBOX_ORIG_USER = null;  // guarda currentUser real al entrar
+// Prefija las claves de storage para aislar totalmente los datos de prueba.
+// ph9 y pachanga_sync_v1 siempre se leen en modo real (seed de stats).
+function _sk(k){ return SANDBOX ? k.replace('pachanga_','pachanga_test_') : k; }
 
 /* ══ AUTH ══ */
 let AUTH = { currentUser: null, users: {} };
@@ -3457,17 +3491,139 @@ function toggleHistorialPlayer(id){
 }
 function renderHistorialInner(jornadaId){} // placeholder, rendering is inline
 
+/* ══ SANDBOX FUNCTIONS ══ */
+
+// Resetea el state en memoria a un estado limpio de jornada (no toca config)
+function _sbResetState(){
+  S.bets       = {campeon:[],goleador:[],primero:[],historico:[],equipos:[]};
+  S.oddsPool   = {campeon:[],goleador:[],primero:[],historico:[],equipos:[]};
+  S.props      = [];
+  S.cart       = [];
+  S.payouts    = [];
+  S.resolution = {campeon:null,goleador:null,primero:null,resolved:false};
+  S.betLimitExtensions = {};
+  S.betLimitRequests   = {};
+  S.status     = 'open';
+  S.jornadaHistory = [];
+}
+
+// Rellena el <select> del banner con la lista de jugadores
+function _sbPopulatePlayers(){
+  var players = _getAllPlayers();
+  var sel = document.getElementById('sb-player-sel');
+  if(!sel) return;
+  var current = AUTH.users['__sb__']?.fullName || '';
+  sel.innerHTML = players.map(function(p){
+    return '<option value="'+p+'"'+(p===current?' selected':'')+'>'+p+'</option>';
+  }).join('');
+}
+
+// Cambia el jugador simulado sin tocar la auth real
+function sandboxSwitchPlayer(name){
+  if(!SANDBOX||!name) return;
+  AUTH.users['__sb__'].fullName = name;
+  // Actualiza el "Apostando como:" de la pantalla
+  var dn = document.getElementById('bettor-name');
+  if(dn) dn.textContent = name;
+  var ba = document.getElementById('bettor-alias');
+  if(ba) ba.value = S.aliases[name]||'';
+  _updateLimitDisplay(name);
+  showToast('🧪 Simulando como: '+name,'tok');
+}
+
+function enterSandbox(){
+  if(SANDBOX){ showToast('Ya estás en modo prueba','terr'); return; }
+  SANDBOX = true;
+  SANDBOX_ORIG_USER = AUTH.currentUser;
+
+  // Crear usuario ghost para que todo el código de bets funcione sin cambios
+  var defaultPlayer = AUTH.users[AUTH.currentUser]?.fullName || _getAllPlayers()[0] || 'Jugador Prueba';
+  AUTH.users['__sb__'] = {fullName:defaultPlayer, alias:'', isOrg:false, isSandbox:true};
+  AUTH.currentUser = '__sb__';
+
+  // Limpiar state — mantiene rake y alias de la config real
+  var savedRake  = S.rake;
+  var savedAlias = S.alias;
+  var savedMp    = S.mpNombre;
+  _sbResetState();
+  S.rake    = savedRake;
+  S.alias   = savedAlias;
+  S.mpNombre= savedMp;
+  S.mode    = 'org';  // org para poder resolver resultados desde sandbox
+  S.orgUnlockedUntil = Date.now() + 3600000;
+
+  // Mostrar banner y rellenar select
+  var banner = document.getElementById('sandbox-banner');
+  if(banner) banner.style.display='flex';
+  _sbPopulatePlayers();
+
+  // Forzar modo org en nav (para tener acceso a Resultados y Pagos)
+  renderNav();
+  updateJornadaDateDisplay();
+  populateSelects();
+  renderAll();
+  showScreen('apostar');
+  afterLogin(); // refresca el display del header
+  showToast('🧪 Modo prueba activado','tok');
+}
+
+function exitSandbox(){
+  if(!SANDBOX) return;
+  SANDBOX = false;
+  // Restaurar usuario real
+  delete AUTH.users['__sb__'];
+  AUTH.currentUser = SANDBOX_ORIG_USER;
+  SANDBOX_ORIG_USER = null;
+
+  // Ocultar banner
+  var banner = document.getElementById('sandbox-banner');
+  if(banner) banner.style.display='none';
+
+  // Recargar estado real desde localStorage
+  _sbResetState();
+  loadStorage();
+  renderNav();
+  updateJornadaDateDisplay();
+  populateSelects();
+  renderAll();
+  showScreen('apostar');
+  afterLogin();
+  showToast('Modo prueba desactivado — datos reales restaurados','tok');
+}
+
+function resetSandbox(){
+  if(!SANDBOX) return;
+  var current = AUTH.users['__sb__']?.fullName;
+  var savedRake  = S.rake;
+  var savedAlias = S.alias;
+  var savedMp    = S.mpNombre;
+  _sbResetState();
+  S.rake    = savedRake;
+  S.alias   = savedAlias;
+  S.mpNombre= savedMp;
+  S.mode    = 'org';
+  S.orgUnlockedUntil = Date.now() + 3600000;
+  _sbPopulatePlayers();
+  renderNav();
+  renderAll();
+  showScreen('apostar');
+  afterLogin();
+  showToast('🧪 Sandbox reiniciado','tok');
+}
+
 /* ══ STORAGE ══ */
 function saveStorage(){
+  // En modo prueba no persiste nada — el sandbox es solo en memoria
+  if(SANDBOX) return;
   try{
-    localStorage.setItem('pachanga_bets_v4',JSON.stringify(S.bets));
-    localStorage.setItem('pachanga_limits_v4',JSON.stringify({extensions:S.betLimitExtensions||{},requests:S.betLimitRequests||{}}));
-    localStorage.setItem('pachanga_odds_pool_v4',JSON.stringify(S.oddsPool||{}));
-    localStorage.setItem('pachanga_props_v4',JSON.stringify(S.props));
-    localStorage.setItem('pachanga_pays_v4',JSON.stringify(S.payouts));
-    localStorage.setItem('pachanga_aliases_v4',JSON.stringify(S.aliases));
-    localStorage.setItem('pachanga_history_v4',JSON.stringify(S.jornadaHistory||[]));
-    localStorage.setItem('pachanga_cfg_v4',JSON.stringify({
+    localStorage.setItem(_sk('pachanga_bets_v4'),JSON.stringify(S.bets));
+    localStorage.setItem(_sk('pachanga_limits_v4'),JSON.stringify({extensions:S.betLimitExtensions||{},requests:S.betLimitRequests||{}}));
+    localStorage.setItem(_sk('pachanga_odds_pool_v4'),JSON.stringify(S.oddsPool||{}));
+    localStorage.setItem(_sk('pachanga_props_v4'),JSON.stringify(S.props));
+    localStorage.setItem(_sk('pachanga_pays_v4'),JSON.stringify(S.payouts));
+    localStorage.setItem(_sk('pachanga_aliases_v4'),JSON.stringify(S.aliases));
+    localStorage.setItem(_sk('pachanga_history_v4'),JSON.stringify(S.jornadaHistory||[]));
+    localStorage.setItem(_sk('pachanga_cfg_v4'),JSON.stringify({
       rake:S.rake,status:S.status,orgPin:S.orgPin,orgUsername:S.orgUsername||'igna',alias:S.alias,mpNombre:S.mpNombre,
       mode:S.mode,resolution:S.resolution,earlyBird:S.earlyBird,orgUnlockedUntil:S.orgUnlockedUntil||0,
       jornadaDate:S.jornadaDate
@@ -3476,15 +3632,15 @@ function saveStorage(){
 }
 function loadStorage(){
   try{
-    const lim=localStorage.getItem('pachanga_limits_v4');
+    const lim=localStorage.getItem(_sk('pachanga_limits_v4'));
     if(lim){const ld=JSON.parse(lim);S.betLimitExtensions=ld.extensions||{};S.betLimitRequests=ld.requests||{};}
-    const b=localStorage.getItem('pachanga_bets_v4');
+    const b=localStorage.getItem(_sk('pachanga_bets_v4'));
     if(b){ const parsed=JSON.parse(b); S.bets.campeon=parsed.campeon||[]; S.bets.goleador=parsed.goleador||[]; S.bets.primero=parsed.primero||[]; S.bets.historico=parsed.historico||[]; S.bets.equipos=parsed.equipos||[]; }
-    const op=localStorage.getItem('pachanga_odds_pool_v4');if(op)S.oddsPool=JSON.parse(op);
-    const p=localStorage.getItem('pachanga_props_v4');if(p)S.props=JSON.parse(p);
-    const py=localStorage.getItem('pachanga_pays_v4');if(py)S.payouts=JSON.parse(py);
-    const al=localStorage.getItem('pachanga_aliases_v4');if(al)S.aliases=JSON.parse(al);
-    const c=localStorage.getItem('pachanga_cfg_v4');
+    const op=localStorage.getItem(_sk('pachanga_odds_pool_v4'));if(op)S.oddsPool=JSON.parse(op);
+    const p=localStorage.getItem(_sk('pachanga_props_v4'));if(p)S.props=JSON.parse(p);
+    const py=localStorage.getItem(_sk('pachanga_pays_v4'));if(py)S.payouts=JSON.parse(py);
+    const al=localStorage.getItem(_sk('pachanga_aliases_v4'));if(al)S.aliases=JSON.parse(al);
+    const c=localStorage.getItem(_sk('pachanga_cfg_v4'));
     if(c){const cfg=JSON.parse(c);
       S.rake=cfg.rake||.1;
       // Forzar status='open' al cargar salvo que haya jornada activa en curso
