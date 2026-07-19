@@ -1126,7 +1126,7 @@ var _recoveryUser=null;  // usuario en proceso de recuperar contraseña
    detecta que el archivo en el server tiene otro build, muestra un banner para
    actualizar. Así una apuesta nunca queda sin sincronizar por usar código viejo.
    IMPORTANTE: subir este valor en CADA deploy de apuestas.html. */
-window.__PB_BUILD__='2026-07-19c';
+window.__PB_BUILD__='2026-07-19d';
 function _pbShowUpdate(){
   if(document.getElementById('pb-update-bar'))return;
   var bar=document.createElement('div');
@@ -1165,7 +1165,7 @@ try{
   _db.collection('apuestas').onSnapshot(function(snap){
     if(typeof SANDBOX!=='undefined'&&SANDBOX) return; // el modo prueba no se mezcla con datos reales
     try{
-      var nb={campeon:[],goleador:[],primero:[],historico:[],equipos:[],totales:[],valla:[],campMundi:[],golMundi:[]};
+      var nb=_emptyBetMap();
       snap.forEach(function(d){
         var b=d.data()||{}; var m=b.market; if(!m) return; if(!nb[m]) nb[m]=[];
         nb[m].push({id:d.id,player:b.player,playerAlias:b.playerAlias,option:b.option,optionLabel:b.optionLabel,amount:b.amount,ref:b.ref,batchRef:b.batchRef,payStatus:b.payStatus,cobroStatus:b.cobroStatus,isEarlyBird:b.isEarlyBird,oddsAtTime:b.oddsAtTime});
@@ -1374,7 +1374,7 @@ function _pbApplyRenames(){
   }catch(e){ return false; }
 }
 function _rebuildOddsPool(){
-  var op={campeon:[],goleador:[],primero:[],historico:[],equipos:[],totales:[],valla:[]};
+  var op=_emptyBetMap();
   Object.keys(S.bets).forEach(function(m){ (S.bets[m]||[]).filter(function(b){return b.payStatus==='confirmed'&&b.cobroStatus!=='rejected';}).forEach(function(b){ if(!op[m])op[m]=[]; op[m].push({option:b.option,amount:b.amount}); }); });
   S.oddsPool=op;
 }
@@ -2154,10 +2154,43 @@ function _applyAutofill(){
 const PLAYERS=_getAllPlayers();
 const TEAMS=_getTeams();
 const JORP=_getJorpPlayers();
-const MKL={campeon:'Campeón',goleador:'Goleador noche',primero:'Primer goleador',historico:'Goles jugador',equipos:'Equipos',totales:'Total de goles',valla:'Valla menos vencida',campMundi:'Campeón del Mundialito',golMundi:'Goleador del Mundialito'};
-const MKI={campeon:'🏆',goleador:'⚽',primero:'⚡',historico:'📈',equipos:'🛡️',totales:'🌙',valla:'🥅',campMundi:'🏆',golMundi:'⚽'};
-const MKK={campeon:'cam',goleador:'gol',primero:'pri',valla:'val',campMundi:'cmu',golMundi:'gmu'};
-const MKD={campeon:'dc',goleador:'dg',primero:'dp',prop:'dpr',totales:'dg',valla:'dc',campMundi:'dc',golMundi:'dg'};
+/* ══ REGISTRO ÚNICO DE MERCADOS ══════════════════════════════════════════════
+   Cada mercado se define UNA sola vez acá. Todos los mapas/loops (MKL/MKI/MKK/MKD,
+   init de S.bets/oddsPool/sel, listener de apuestas, resets, loadStorage, mktOpts,
+   _isTeamMarket, resolución/gating, historial) leen de este objeto o de sus listas
+   derivadas. Agregar un mercado = una entrada acá (+ su tarjeta HTML y, si necesita
+   seed propio, su rama en getOdds). Campos:
+     name  → etiqueta (MKL). OJO: MKL.campeon se re-etiqueta en runtime (mundialito).
+     icon  → emoji (MKI)
+     key   → clave corta de inputs/DOM (MKK). null = mercado con UI propia (historico/equipos/totales)
+     dot   → clase del puntito de color (MKD). null = no entra en MKD (usa el fallback del render)
+     opts  → 'team'|'player'|'param'. team/player → mktOpts los enumera; param → opciones desde inputs
+     team  → true si la opción es un equipo (composición / _isTeamMarket)
+     family→ cómo se resuelve/paga: 'winner'|'valla'|'historico'|'equipos'|'totales'
+     cartPrefix → prefijo legible del carrito (winner-take-all con nombres compuestos). null = sin prefijo
+   ──────────────────────────────────────────────────────────────────────────── */
+const MERCADOS={
+  campeon:  {name:'Campeón',                 icon:'🏆', key:'cam', dot:'dc',  opts:'team',   team:true,  family:'winner',    cartPrefix:'Campeón: '},
+  goleador: {name:'Goleador noche',          icon:'⚽', key:'gol', dot:'dg',  opts:'player', team:false, family:'winner',    cartPrefix:null},
+  primero:  {name:'Primer goleador',         icon:'⚡', key:'pri', dot:'dp',  opts:'player', team:false, family:'winner',    cartPrefix:null},
+  historico:{name:'Goles jugador',           icon:'📈', key:null,  dot:null,  opts:'param',  team:false, family:'historico', cartPrefix:null},
+  equipos:  {name:'Equipos',                 icon:'🛡️', key:null,  dot:null,  opts:'param',  team:false, family:'equipos',   cartPrefix:null},
+  totales:  {name:'Total de goles',          icon:'🌙', key:null,  dot:'dg',  opts:'param',  team:false, family:'totales',   cartPrefix:null},
+  valla:    {name:'Valla menos vencida',     icon:'🥅', key:'val', dot:'dc',  opts:'team',   team:true,  family:'valla',     cartPrefix:'Valla: '},
+  campMundi:{name:'Campeón del Mundialito',  icon:'🏆', key:'cmu', dot:'dc',  opts:'team',   team:true,  family:'winner',    cartPrefix:'Campeón del Mundialito: '},
+  golMundi: {name:'Goleador del Mundialito', icon:'⚽', key:'gmu', dot:'dg',  opts:'player', team:false, family:'winner',    cartPrefix:'Goleador del Mundialito: '}
+};
+const ALL_MARKETS    = Object.keys(MERCADOS);                                            // orden canónico de mercados
+const SIMPLE_MARKETS = ALL_MARKETS.filter(function(m){return MERCADOS[m].opts!=='param';}); // select de una opción (mktOpts/S.sel/MKK)
+const WINNER_MARKETS = ALL_MARKETS.filter(function(m){return MERCADOS[m].family==='winner';}); // se resuelven con distrib + select res-*
+// Mapas legacy DERIVADOS del registro (los lugares que ya leen MKL/MKI/MKK/MKD siguen igual):
+const MKL={}; ALL_MARKETS.forEach(function(m){MKL[m]=MERCADOS[m].name;}); // objeto mutable: MKL.campeon se re-etiqueta en el mundialito
+const MKI={}; ALL_MARKETS.forEach(function(m){MKI[m]=MERCADOS[m].icon;});
+const MKK={}; ALL_MARKETS.forEach(function(m){if(MERCADOS[m].key)MKK[m]=MERCADOS[m].key;});
+const MKD={prop:'dpr'}; ALL_MARKETS.forEach(function(m){if(MERCADOS[m].dot)MKD[m]=MERCADOS[m].dot;});
+// Helpers de estado: un solo lugar arma el "mapa de mercados vacío" y la selección vacía.
+function _emptyBetMap(){var o={};ALL_MARKETS.forEach(function(m){o[m]=[];});return o;}
+function _emptySel(){var o={};SIMPLE_MARKETS.forEach(function(m){o[m]=null;});return o;}
 // Tope de retorno de la valla menos vencida (winner-take-all entre 2-3 equipos)
 const VALLA_ODDS_CAP = 3.00;
 
@@ -2167,18 +2200,18 @@ const S={
   rake:0.10, status:'open',
   alias:'la.pachanga', mpNombre:'',
   earlyBird:{active:false,bonus:0.10,everOpen:false},
-  bets:{campeon:[],goleador:[],primero:[],historico:[],equipos:[],totales:[],valla:[],campMundi:[],golMundi:[]},
+  bets:_emptyBetMap(),
   // bet: {id,player,playerAlias,option,amount,ref,batchRef,payStatus,isEarlyBird,oddsAtTime}
   // historico bets have option like "Tomás Rendo|gte|3" (player|cond|threshold)
   // equipos bets have option like "Los Peronistas|goles|gte|5" or "Los Peronistas|wins|gte|2"
   // totales bets have option like "TOTAL|gte|10" (cond|threshold sobre el total de goles de la jornada)
   // valla bets have option = nombre del equipo (winner-take-all: el que recibe menos goles)
-  oddsPool:{campeon:[],goleador:[],primero:[],historico:[],equipos:[],totales:[],valla:[],campMundi:[],golMundi:[]},
+  oddsPool:_emptyBetMap(),
   props:[],
   aliases:{},
   cart:[],
   // cart item: {id,player,playerAlias,market,option,amount,isEarlyBird,oddsAtTime}
-  sel:{campeon:null,goleador:null,primero:null,valla:null,campMundi:null,golMundi:null},
+  sel:_emptySel(),
   betLimitDefault:20000,            // default max per user per jornada
   betLimitExtensions:{},            // {playerName: extraAmount}
   betLimitRequests:{},              // {playerName: {requested, status:'pending'|'approved'|'rejected'}}
@@ -2594,12 +2627,11 @@ function renderAll(){
 
 /* ══ ODDS ENGINE ══ */
 function mktOpts(m){
-  if(m==='campeon')  return _getTeams().map(function(t){return t.name;});
-  if(m==='valla')    return _getTeams().map(function(t){return t.name;});
-  if(m==='goleador') return _getJorpPlayers();
-  if(m==='primero')  return _getJorpPlayers();
-  if(m==='campMundi')return _getTeams().map(function(t){return t.name;}); // los equipos del torneo
-  if(m==='golMundi') return _getJorpPlayers();                            // TODOS los participantes del mundialito
+  // opciones según el tipo declarado en el registro: 'team' = equipos de la jornada,
+  // 'player' = participantes convocados, 'param'/otro = opciones desde inputs (sin lista fija).
+  var t=MERCADOS[m]&&MERCADOS[m].opts;
+  if(t==='team')   return _getTeams().map(function(x){return x.name;});
+  if(t==='player') return _getJorpPlayers();
   return[];
 }
 // Jugadores convocados a la jornada actual (para marcar "no juega")
@@ -2793,7 +2825,7 @@ function renderMarket(m){
   updatePreview(m);
 }
 
-function _isTeamMarket(m){return m==='campeon'||m==='valla'||m==='campMundi';}
+function _isTeamMarket(m){return !!(MERCADOS[m]&&MERCADOS[m].team);}
 function selectOpt(m,o){
   if(!S.compOpen)S.compOpen={};
   var _team=_isTeamMarket(m);
@@ -2924,8 +2956,9 @@ function addToCart(market){
   const oddsAtTime=type==='nobets'? SEED_ODDS_CAP : (val||SEED_ODDS_CAP);
   const isEB=S.earlyBird.active;
 
-  // Etiqueta legible para mercados winner-take-all con nombres compuestos
-  const _label=market==='valla'?`Valla: ${option}`:(market==='campeon'?`Campeón: ${option}`:(market==='campMundi'?`Campeón del Mundialito: ${option}`:(market==='golMundi'?`Goleador del Mundialito: ${option}`:undefined)));
+  // Etiqueta legible para mercados winner-take-all con nombres compuestos (prefijo del registro)
+  const _pfx=MERCADOS[market]&&MERCADOS[market].cartPrefix;
+  const _label=_pfx?`${_pfx}${option}`:undefined;
   S.cart.push({id:uid(),player,playerAlias:alias||S.aliases[player]||'',market,option,optionLabel:_label,amount,isEarlyBird:isEB,oddsAtTime:parseFloat(oddsAtTime.toFixed(2))});
   amtEl.value='';
   S.sel[market]=null;
@@ -3606,8 +3639,9 @@ function openPayoutDetail(player){
   const resolution=S.resolution||{};
   const rows=[];
 
-  const ALL_MKTS=['campeon','goleador','primero','historico','equipos','totales','valla'];
-  ALL_MKTS.forEach(mkt=>{
+  // ALL_MARKETS (registro único): incluye campMundi/golMundi para que las apuestas de
+  // fase final del mundialito aparezcan en el detalle de pago del org (antes se omitían).
+  ALL_MARKETS.forEach(mkt=>{
     (S.bets[mkt]||[]).filter(b=>b.player===player&&b.payStatus==='confirmed'&&b.cobroStatus!=='rejected').forEach(b=>{
       const label=_betLabel(b,mkt);
       const won=(b.resolvedWon===undefined)?null:b.resolvedWon;
@@ -3753,10 +3787,13 @@ function resolveAll(){
   const rp=document.getElementById('res-primero').value;
   const rcm=(document.getElementById('res-campMundi')||{}).value||'';
   const rgm=(document.getElementById('res-golMundi')||{}).value||'';
-  // Exigir SOLO el resultado de los mercados que tienen apuestas confirmadas (así se puede
-  // resolver la fase final del mundialito sin exigir los mercados de la fase de grupos, y viceversa).
+  // Exigir SOLO el resultado de los mercados WINNER con apuestas confirmadas (así se resuelve
+  // la fase final del mundialito sin exigir los de grupos, y viceversa). Recorre WINNER_MARKETS
+  // (registro único) leyendo cada select res-<m>: agregar un mercado winner no obliga a tocar
+  // este chequeo ni el dispatch de distrib de abajo.
   const _needRes=m=>confirmedBets(m).length>0;
-  if((_needRes('campeon')&&!rc)||(_needRes('goleador')&&!rg)||(_needRes('primero')&&!rp)||(_needRes('campMundi')&&!rcm)||(_needRes('golMundi')&&!rgm)){showToast('Completá el resultado de los mercados con apuestas','terr');return;}
+  const _resVal=m=>(document.getElementById('res-'+m)||{}).value||'';
+  if(WINNER_MARKETS.some(m=>_needRes(m)&&!_resVal(m))){showToast('Completá el resultado de los mercados con apuestas','terr');return;}
 
   const payments={};
   let totalOrgNet=0, orgBonus=0, ebPaid=0;
@@ -3795,8 +3832,9 @@ function resolveAll(){
     totalOrgNet+=(total-totalPayout);
   }
 
-  distrib('campeon',rc); distrib('goleador',rg); distrib('primero',rp);
-  if(rcm) distrib('campMundi',rcm); if(rgm) distrib('golMundi',rgm);
+  // Dispatch por WINNER_MARKETS (registro único). Un valor vacío es no-op cuando el mercado
+  // no tiene apuestas, e imposible cuando sí las tiene (el gating de arriba ya lo exigió).
+  WINNER_MARKETS.forEach(function(m){ var v=_resVal(m); if(v) distrib(m,v); });
 
   // Props resolution
   S.props.forEach(p=>{
@@ -4345,10 +4383,10 @@ function _doResetAll(){
   }
   if(!SANDBOX)_clearEndedStash();
 
-  S.bets={campeon:[],goleador:[],primero:[],historico:[],equipos:[],totales:[],valla:[],campMundi:[],golMundi:[]};
+  S.bets=_emptyBetMap();
   S.props=[];
   S.cart=[];
-  S.sel={campeon:null,goleador:null,primero:null,valla:null};
+  S.sel=_emptySel();
   S.payouts=[];
   S.resolution={campeon:null,goleador:null,primero:null,resolved:false};
   S.earlyBird.active=false;
@@ -4390,16 +4428,16 @@ function resetEverything(){
   });
 }
 function _doResetEverything(){
-  S.bets={campeon:[],goleador:[],primero:[],historico:[],equipos:[],totales:[],valla:[],campMundi:[],golMundi:[]};
+  S.bets=_emptyBetMap();
   S.props=[];
   S.cart=[];
-  S.sel={campeon:null,goleador:null,primero:null,valla:null};
+  S.sel=_emptySel();
   S.payouts=[];
   S.resolution={campeon:null,goleador:null,primero:null,resolved:false};
   S.earlyBird={active:false,bonus:0.10,everOpen:false};
   S.expandedMarkets={campeon:false,goleador:false,primero:false};
   S.jornadaHistory=[];
-  S.oddsPool={campeon:[],goleador:[],primero:[]};  // resetear también el pool de odds
+  S.oddsPool=_emptyBetMap();  // resetear también el pool de odds (todos los mercados)
   S.status='open';
   S.jornadaDate=getNextFriday();
   S.orgUnlockedUntil=0;
@@ -4962,7 +5000,7 @@ function _histBetPayout(j,mkt,b){
     if(b.resolvedWon===false) return 0;
     return 0;
   };
-  if(mkt==='campeon'||mkt==='goleador'||mkt==='primero'||mkt==='campMundi'||mkt==='golMundi'){
+  if((MERCADOS[mkt]||{}).family==='winner'){ // campeon/goleador/primero/campMundi/golMundi
     var w=res[mkt]; if(w==null) return stored();
     if(w==='__void__') return b.amount;
     return b.option===w ? pay() : 0;
@@ -4996,7 +5034,7 @@ function _histBetPayout(j,mkt,b){
 // ¿Ganó/perdió/devuelta una apuesta archivada? (para el ✓/❌ del detalle, consistente con el pago)
 function _histBetWon(j,mkt,b){
   var res=j.resolution||{};
-  var has=(mkt==='campeon'||mkt==='goleador'||mkt==='primero'||mkt==='campMundi'||mkt==='golMundi')?(res[mkt]!=null)
+  var has=((MERCADOS[mkt]||{}).family==='winner')?(res[mkt]!=null)
         :mkt==='valla'?(res.vallaWinner!=null)
         :mkt==='historico'?((res.hist||{})[String(parseHistKey(b.option).player).replace(/[^a-z0-9]/gi,'_')]!=null)
         :mkt==='equipos'?((res.eq||{})[b.option.split('|').slice(0,4).join('|').replace(/[^a-z0-9]/gi,'_')]!=null)
@@ -5160,8 +5198,8 @@ function histEditBetOutcome(jid,mkt,betId){
 
 // Resetea el state en memoria a un estado limpio de jornada (no toca config)
 function _sbResetState(){
-  S.bets       = {campeon:[],goleador:[],primero:[],historico:[],equipos:[],totales:[],valla:[]};
-  S.oddsPool   = {campeon:[],goleador:[],primero:[],historico:[],equipos:[],totales:[],valla:[]};
+  S.bets       = _emptyBetMap();
+  S.oddsPool   = _emptyBetMap();
   S.props      = [];
   S.cart       = [];
   S.payouts    = [];
@@ -5300,11 +5338,11 @@ function loadStorage(){
     const lim=localStorage.getItem(_sk('pachanga_limits_v4'));
     if(lim){const ld=JSON.parse(lim);S.betLimitExtensions=ld.extensions||{};S.betLimitRequests=ld.requests||{};}
     const b=localStorage.getItem(_sk('pachanga_bets_v4'));
-    if(b){ const parsed=JSON.parse(b); S.bets.campeon=parsed.campeon||[]; S.bets.goleador=parsed.goleador||[]; S.bets.primero=parsed.primero||[]; S.bets.historico=parsed.historico||[]; S.bets.equipos=parsed.equipos||[]; S.bets.totales=parsed.totales||[]; S.bets.valla=parsed.valla||[]; }
+    if(b){ const parsed=JSON.parse(b); ALL_MARKETS.forEach(function(m){ S.bets[m]=Array.isArray(parsed[m])?parsed[m]:[]; }); }
     const op=localStorage.getItem(_sk('pachanga_odds_pool_v4'));if(op)S.oddsPool=JSON.parse(op);
     // Normalizar: la data guardada vieja no tiene las claves nuevas (campMundi/golMundi) → sin esto
     // S.bets[m].filter / S.oddsPool[m] explota. Garantizar que TODOS los mercados sean arrays.
-    ['campeon','goleador','primero','historico','equipos','totales','valla','campMundi','golMundi'].forEach(function(m){ if(!Array.isArray(S.bets[m]))S.bets[m]=[]; if(!Array.isArray(S.oddsPool[m]))S.oddsPool[m]=[]; });
+    ALL_MARKETS.forEach(function(m){ if(!Array.isArray(S.bets[m]))S.bets[m]=[]; if(!Array.isArray(S.oddsPool[m]))S.oddsPool[m]=[]; });
     const p=localStorage.getItem(_sk('pachanga_props_v4'));if(p)S.props=JSON.parse(p);
     const py=localStorage.getItem(_sk('pachanga_pays_v4'));if(py)S.payouts=JSON.parse(py);
     const hi=localStorage.getItem(_sk('pachanga_history_v4'));if(hi)S.jornadaHistory=JSON.parse(hi);
