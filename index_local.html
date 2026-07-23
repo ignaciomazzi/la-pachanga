@@ -1376,28 +1376,48 @@ function vStandby(){
   var cur=S.cur;if(!cur||!isTourney(cur))return'<div class="page"><p>Sin datos.</p></div>';
   var st=tnState(cur);
   if(!st||!st.groupDone){setTimeout(function(){go(cur.nextMatch?'live':'waiting');},50);return'<div class="page"></div>';}
-  var _c=cur.cfg||{};var _koDef=_c.secsKO||_c.secs||480;
-  var _durRow=function(id,lbl,secs){return'<div class="cfg-row"><div><div class="cfg-label">'+lbl+'</div></div><div class="num-ctrl"><button id="'+id+'_m">−</button><span>'+Math.round(secs/60)+' min</span><button id="'+id+'_p">+</button></div></div>';};
-  var _hasQF=!!st.qf1;
-  var ajustesCard='<div class="card"><div style="font-size:11px;color:var(--txt2);font-weight:700;letter-spacing:.5px;margin-bottom:6px">⚙️ AJUSTES DE LA FASE FINAL</div>'
-    +_durRow('sbd_semi',(_hasQF?'Cuartos y semis':'Semifinales'),_c.secsSemi||_koDef)
-    +_durRow('sbd_third','3er puesto',_c.secsThird||_koDef)
-    +_durRow('sbd_final','Final',_c.secsFinal||_koDef)
-    +'<button id="sb_teams" class="gk-btn" style="margin-top:10px">✏️ Editar equipos y colores</button>'
-    +'<div style="font-size:11px;color:var(--txt3);margin-top:8px">Para corregir un gol o una asistencia, abrí el partido en la lista de abajo y tocá ✎.</div>'
-    +'</div>';
   return'<div class="page">'
-    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem"><button id="sbhm" class="sbb">←</button><div style="flex:1"><div style="font-weight:700;font-size:16px">🌎 '+esc(cur.theme||'Mundialito Pachanguero')+'</div><div style="font-size:11px;color:var(--txt3)">Fase de grupos completa · fase final pendiente</div></div></div>'
+    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem"><button id="sbhm" class="sbb">←</button><div style="flex:1"><div style="font-weight:700;font-size:16px">🌎 '+esc(cur.theme||'Mundialito Pachanguero')+'</div><div style="font-size:11px;color:var(--txt3)">Fase de grupos completa · fase final pendiente</div></div><button id="sb_gear" class="sbb" title="Ajustes de la fase final">⚙️</button></div>'
     +'<div class="card" style="text-align:center;border-color:#fbbf2455;background:#3d280012;padding:1.1rem"><div style="font-size:32px">⏸</div><div style="font-size:12px;color:var(--gold);font-weight:800;letter-spacing:1px;margin-top:4px">FASE FINAL EN STANDBY</div><div style="font-size:12px;color:var(--txt2);margin-top:6px">La fase de grupos terminó. La fase final se puede jugar ahora o cuando quieran — el mundialito queda guardado tal cual está.</div></div>'
     +(cur.mvpGroups?'<div class="card" style="text-align:center;padding:1rem"><div style="font-size:26px">⭐</div><div style="color:var(--gold);font-weight:700;font-size:10px;letter-spacing:1px;margin-top:2px">MVP DE LA FASE DE GRUPOS</div><div style="font-size:18px;font-weight:800;margin-top:4px">'+esc(nick(cur.mvpGroups))+'</div><button id="sb_mvp" style="background:transparent;border:none;color:var(--txt3);font-size:12px;cursor:pointer;margin-top:6px;font-family:inherit">Cambiar MVP</button></div>':'<button id="sb_mvp" class="btn btn-ghost" style="border-color:#fbbf2444;color:var(--gold);margin-bottom:.75rem">⭐ Elegir MVP de la fase de grupos</button>')
-    +ajustesCard
+    +'<button id="sb_res" class="btn btn-ghost" style="margin-bottom:.75rem">📋 Resumen de equipos</button>'
     +'<div class="card"><div style="font-size:11px;color:var(--txt2);font-weight:700;letter-spacing:.5px;margin-bottom:10px">FASE DE GRUPOS</div>'+tnTablesHTML(cur,null)+'</div>'
     +'<div class="card"><div style="font-size:11px;color:var(--txt2);font-weight:700;letter-spacing:.5px;margin-bottom:10px">⚽ GOLEADORES</div>'+_sbScorersHTML(cur)+'</div>'
     +'<div class="card"><div style="font-size:11px;color:var(--txt2);font-weight:700;letter-spacing:.5px;margin-bottom:10px">🅰 ASISTIDORES</div>'+_sbAssistsHTML(cur)+'</div>'
-    +'<div class="card"><div style="font-size:11px;color:var(--txt2);font-weight:700;letter-spacing:.5px;margin-bottom:4px">📋 PARTIDOS · tocá para ver los goles</div>'+_sbGroupMatchesHTML(cur)+'</div>'
+    +'<div class="card"><div style="font-size:11px;color:var(--txt2);font-weight:700;letter-spacing:.5px;margin-bottom:4px">📋 PARTIDOS · tocá para ver los goles y corregirlos con ✎</div>'+_sbGroupMatchesHTML(cur)+'</div>'
     +'<div class="card" style="border-color:#fbbf2444"><div style="font-size:11px;color:var(--gold);font-weight:800;letter-spacing:1px;margin-bottom:12px">🌎 CUADRO DE LA FASE FINAL</div>'+tnBracketHTML(cur)+'</div>'
     +'<button id="sb_go" class="btn btn-gold" style="padding:.9rem;font-size:16px">▶ Iniciar fase final</button>'
     +'<button id="sb_back" class="btn btn-ghost">🏠 Volver al inicio (queda en standby)</button>'
+    +'</div>';
+}
+// Ajustes de la fase final (pantalla aparte, engranaje del standby)
+function vStandbyCfg(){
+  var cur=S.cur;if(!cur||!isTourney(cur))return'<div class="page"><p>Sin datos.</p></div>';
+  var st=tnState(cur);var T=cur.tourney||{};
+  var _c=cur.cfg||{};var _koDef=_c.secsKO||_c.secs||480;
+  var _hasQF=!!(st&&st.qf1);
+  var koMs=(cur.matches||[]).filter(function(m){return m.stage&&m.stage!=='group';});
+  var semiPlayed=koMs.some(function(m){return m.stage==='qf1'||m.stage==='qf2'||m.stage==='semi1'||m.stage==='semi2';});
+  var finalPlayed=koMs.some(function(m){return m.stage==='final';});
+  var _durRow=function(id,lbl,secs){return'<div class="cfg-row"><div><div class="cfg-label">'+lbl+'</div></div><div class="num-ctrl"><button id="'+id+'_m">−</button><span>'+Math.round(secs/60)+' min</span><button id="'+id+'_p">+</button></div></div>';};
+  var _seg=function(id,cur_,dis){return'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0 12px">'+[[1,'Solo ida'],[2,'Ida y vuelta']].map(function(o){var sel=o[0]===cur_;return'<button id="'+id+'_'+o[0]+'" class="btn" '+(dis?'disabled':'')+' style="margin-bottom:0;padding:.55rem;font-size:12px;font-weight:700;background:'+(sel?'#3d2800':'var(--sur2)')+';color:'+(sel?'var(--gold)':'var(--txt3)')+';border:1px solid '+(sel?'var(--gold)':'var(--bor)')+(dis?';opacity:.45':'')+'">'+o[1]+'</button>';}).join('')+'</div>';};
+  return'<div class="page">'
+    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem"><button id="sbc_bk" class="sbb">←</button><div style="flex:1"><div style="font-weight:700;font-size:16px">⚙️ Ajustes de la fase final</div><div style="font-size:11px;color:var(--txt3)">'+esc(cur.theme||'Mundialito Pachanguero')+'</div></div></div>'
+    +'<div class="card"><div style="font-size:11px;color:var(--txt2);font-weight:700;letter-spacing:.5px;margin-bottom:6px">⏱ DURACIÓN DE LOS PARTIDOS</div>'
+    +_durRow('sbd_semi',(_hasQF?'Cuartos y semis':'Semifinales'),_c.secsSemi||_koDef)
+    +_durRow('sbd_third','3er puesto',_c.secsThird||_koDef)
+    +_durRow('sbd_final','Final',_c.secsFinal||_koDef)
+    +'</div>'
+    +'<div class="card"><div style="font-size:11px;color:var(--txt2);font-weight:700;letter-spacing:.5px;margin-bottom:8px">🔁 SERIES · IDA Y VUELTA</div>'
+    +'<div class="cfg-label">'+(_hasQF?'Cuartos y semifinales':'Semifinales')+'</div>'+_seg('sbc_semi',T.semiLegs||1,semiPlayed)
+    +'<div class="cfg-label">Final</div>'+_seg('sbc_final',T.finalLegs||1,finalPlayed)
+    +'<div style="font-size:11px;color:var(--txt3)">El 3er puesto es siempre partido único.'+((semiPlayed||finalPlayed)?' Las series que ya arrancaron no se pueden cambiar.':'')+'</div>'
+    +'</div>'
+    +'<div class="card"><div style="font-size:11px;color:var(--txt2);font-weight:700;letter-spacing:.5px;margin-bottom:8px">👥 EQUIPOS</div>'
+    +'<button id="sb_teams" class="gk-btn">✏️ Editar equipos y colores</button>'
+    +'<div style="font-size:11px;color:var(--txt3);margin-top:8px">Para corregir un gol o una asistencia, volvé al standby, abrí el partido en la lista y tocá ✎.</div>'
+    +'</div>'
+    +'<button id="sbc_bk2" class="btn btn-ghost">← Volver al standby</button>'
     +'</div>';
 }
 function vEnd(){const cur=S.cur;if(!cur)return'<div class="page"><p>Sin jornada.</p></div>';const sorted=srtT(cur.teams,cur.standings);const win=sorted[0];const _tst=isTourney(cur)?tnState(cur):null;const tied=(_tst&&_tst.champion)?false:isTie(sorted,cur.standings);const gc=(_tst&&_tst.champion)?_tnPodiumHTML(cur,_tst):tied?'<div class="card" style="text-align:center;padding:1.75rem;border-color:#fbbf2444;background:#3d280018"><div style="font-size:48px;margin-bottom:8px">\ud83e\udd1d</div><div style="font-size:11px;color:var(--gold);font-weight:700;letter-spacing:1px;margin-bottom:8px">EMPATE T\u00c9CNICO</div><p style="font-size:13px;color:var(--txt2);margin-bottom:16px">\u00bfQui\u00e9n es el campe\u00f3n de esta noche?</p>'+sorted.map((t,i)=>{const s=cur.standings[t.id]||{pts:0};const ci=cur.teams.indexOf(t),c=tclr(t,ci>=0?ci:0);return'<button id="td'+i+'" class="btn" style="background:'+c+'1a;color:'+c+';border:1px solid '+c+'44;margin-bottom:8px;font-weight:700">'+esc(t.name)+' \u2014 '+s.pts+' pts</button>';}).join('')+'<button id="tdno" class="btn btn-ghost">Sin campe\u00f3n \u2014 repetir equipos</button></div>':'<div class="card" style="text-align:center;padding:1.75rem;border-color:#4ade8044;background:#052e161a"><div style="font-size:11px;color:var(--green);font-weight:700;letter-spacing:1px;margin-bottom:8px">CAMPE\u00d3N DE LA JORNADA</div><div style="font-size:52px">\ud83c\udfc6</div><div style="font-size:24px;font-weight:800;color:var(--green);margin-top:6px">'+esc(win.name)+'</div><div style="color:var(--txt3);font-size:13px;margin-top:4px">'+((cur.standings[win.id]&&cur.standings[win.id].pts)||0)+' pts \u00b7 '+cur.matches.length+' partidos</div></div>';const mc=cur.mvp?'<div class="card" style="text-align:center;padding:1.25rem"><div style="font-size:32px">\u2b50</div><div style="color:var(--gold);font-weight:700;font-size:11px;letter-spacing:1px;margin-top:4px">MVP DE LA JORNADA</div><div style="font-size:20px;font-weight:800;margin-top:6px">'+esc(nick(cur.mvp))+'</div><button id="echm" style="background:transparent;border:none;color:var(--txt3);font-size:12px;cursor:pointer;margin-top:8px;font-family:inherit">Cambiar MVP</button></div>':'<button id="emvpb" class="btn btn-ghost" style="border-color:#fbbf2444;color:var(--gold);margin-bottom:.75rem">\u2b50 Elegir MVP</button>';const glc=cur.goals&&Object.keys(cur.goals).length?'<div class="card"><div style="font-size:11px;color:var(--txt2);font-weight:700;letter-spacing:.5px;margin-bottom:10px">GOLEADORES</div>'+Object.entries(cur.goals).sort((a,b)=>b[1]-a[1]).map(([p,g],i)=>'<div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid var(--bor)"><span style="font-size:12px;color:var(--txt3);width:20px">'+(i+1)+'.</span><span style="flex:1;font-weight:600">'+esc(nick(p))+'</span><span style="color:var(--green);font-weight:700">\u26bdx'+g+'</span></div>').join('')+'</div>':'';const statsCard=(function(){var evs=cur.events||[];var sm={};evs.forEach(function(ev){if(ev.type==='stat'){if(!sm[ev.player])sm[ev.player]={reg:0,fal:0,can:0};if(ev.stat==='reg')sm[ev.player].reg++;else if(ev.stat==='fal')sm[ev.player].fal++;else if(ev.stat==='can')sm[ev.player].can++;}});var entries=Object.entries(sm).filter(function(e){return e[1].reg+e[1].fal+e[1].can>0;}).sort(function(a,b){return(b[1].reg+b[1].can)-(a[1].reg+a[1].can);});if(!entries.length)return'';return'<div class="card"><div style="font-size:11px;color:var(--txt2);font-weight:700;letter-spacing:.5px;margin-bottom:10px">JUGADAS DE LA NOCHE</div>'+entries.map(function(e){var p=e[0],s=e[1];return'<div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid var(--bor)"><span style="flex:1;font-weight:600;font-size:13px">'+esc(nick(p))+'</span>'+(s.can?'<span style="margin-right:10px;font-size:13px">\ud83c\udfa9\u00d7'+s.can+'</span>':'')+(s.reg?'<span style="margin-right:10px;font-size:13px;color:var(--gold)">\u26a1\u00d7'+s.reg+'</span>':'')+(s.fal?'<span style="font-size:13px;color:var(--red)">\ud83e\ude93\u00d7'+s.fal+'</span>':'')+'</div>';}).join('')+'</div>';})();const sb=!tied?(_testMode?'<div style="text-align:center;padding:10px;font-size:13px;color:var(--gold);background:#3d280018;border:1px solid #fbbf2444;border-radius:10px;margin-top:8px">\ud83e\uddea Modo prueba \u2014 la jornada no se guarda</div><button id="esv" class="btn btn-ghost" style="margin-top:8px;color:var(--gold);border-color:#fbbf2444">\u2713 Terminar prueba</button>'+(cur.nextMatch?'<button id="ebk" class="btn btn-ghost">\u2190 Volver a jugar</button>':''):'<button id="esv" class="btn btn-green" style="padding:.9rem;font-size:16px;margin-top:8px">Guardar jornada \ud83c\udfc6</button>'+(cur.nextMatch?'<button id="ebk" class="btn btn-ghost">\u2190 Volver a jugar</button>':'')):'';
@@ -1612,7 +1632,7 @@ function vEditJornada(){
     +'<button id="ej_save" class="btn btn-green" style="margin-top:4px">\u2713 Guardar cambios</button>'
     +'</div>';
 }
-function render(){const html={home:vHome,setup:vSetup,waiting:vWaiting,live:vLive,standby:vStandby,end:vEnd,ranks:vRanks,players:vPlayers,admin:vAdmin,apikey:vAPIKey,jornada:vJornada,editjornada:vEditJornada,resumen:vResumen}[S.view];document.getElementById('app').innerHTML=html?html():'';attach();}
+function render(){const html={home:vHome,setup:vSetup,waiting:vWaiting,live:vLive,standby:vStandby,standbycfg:vStandbyCfg,end:vEnd,ranks:vRanks,players:vPlayers,admin:vAdmin,apikey:vAPIKey,jornada:vJornada,editjornada:vEditJornada,resumen:vResumen}[S.view];document.getElementById('app').innerHTML=html?html():'';attach();}
 function g(id){return document.getElementById(id);}
 // Abrir un torneo de la lista y rutear según su estado
 function openJ(id){
@@ -1739,9 +1759,8 @@ function attach(){
     on('sb_mvp',function(){var pl=[...new Set(S.cur.teams.flatMap(function(t){return(t.players||[]).filter(function(p){return p&&p.trim();});}))];mMVP(pl,function(p){var nc=cp(S.cur);nc.mvpGroups=p;setCur(nc);render();});});
     (S.cur.matches||[]).forEach(function(m,idx){if(m.stage&&m.stage!=='group')return;on('sbm'+idx,function(){_sbExp[idx]=!_sbExp[idx];render();});});
     (S.cur.events||[]).forEach(function(e,gi){if(e.type==='goal')on('sbge'+gi,function(){mEditGoal(gi);});});
-    on('sb_teams',function(){mEditTeams();});
-    var _sbDur=function(key,delta){var nc=cp(S.cur);nc.cfg=nc.cfg||{};var base=nc.cfg[key]||nc.cfg.secsKO||nc.cfg.secs||480;var m=Math.max(1,Math.min(60,Math.round(base/60)+delta));nc.cfg[key]=m*60;setCur(nc);render();};
-    [['sbd_semi','secsSemi'],['sbd_third','secsThird'],['sbd_final','secsFinal']].forEach(function(d){on(d[0]+'_m',function(){_sbDur(d[1],-1);});on(d[0]+'_p',function(){_sbDur(d[1],1);});});
+    on('sb_gear',function(){go('standbycfg');});
+    on('sb_res',function(){mResumen();});
     on('sb_go',function(){
       mKoOrder(S.cur,function(first){
         if(!first)return;
@@ -1750,6 +1769,19 @@ function attach(){
         var st=tnState(nc);if(!st||!st.next)return;
         nc.nextMatch=st.next;setCur(nc);S.score=[0,0];S.secs=jSecs(nc);mStartNext(nc);
       });
+    });
+  }
+  if(v==='standbycfg'){
+    on('sbc_bk',function(){go('standby');});on('sbc_bk2',function(){go('standby');});
+    on('sb_teams',function(){mEditTeams();});
+    var _sbDur=function(key,delta){var nc=cp(S.cur);nc.cfg=nc.cfg||{};var base=nc.cfg[key]||nc.cfg.secsKO||nc.cfg.secs||480;var m=Math.max(1,Math.min(60,Math.round(base/60)+delta));nc.cfg[key]=m*60;setCur(nc);render();};
+    [['sbd_semi','secsSemi'],['sbd_third','secsThird'],['sbd_final','secsFinal']].forEach(function(d){on(d[0]+'_m',function(){_sbDur(d[1],-1);});on(d[0]+'_p',function(){_sbDur(d[1],1);});});
+    var _koPlayed=(S.cur.matches||[]).filter(function(m){return m.stage&&m.stage!=='group';});
+    var _semiP=_koPlayed.some(function(m){return m.stage==='qf1'||m.stage==='qf2'||m.stage==='semi1'||m.stage==='semi2';});
+    var _finP=_koPlayed.some(function(m){return m.stage==='final';});
+    [['sbc_semi','semiLegs',_semiP],['sbc_final','finalLegs',_finP]].forEach(function(d){
+      if(d[2])return;
+      [1,2].forEach(function(val){on(d[0]+'_'+val,function(){vib(20);var nc=cp(S.cur);var o={};o[d[1]]=val;nc.tourney=Object.assign({},nc.tourney,o);setCur(nc);render();});});
     });
   }
   if(v==='end'){
