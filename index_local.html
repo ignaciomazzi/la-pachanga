@@ -237,7 +237,7 @@ function tclrN(h){var v=LEGACY_CLR[h]||h;var f=TEAM_COLORS.find(function(c){retu
 function mkClrTag(color){var n=tclrN(color);if(!n)return'';return'<div style="display:inline-block;font-size:9px;font-weight:800;letter-spacing:1px;color:'+tcSafe(color)+';background:'+color+'22;border:1px solid '+color+'55;border-radius:99px;padding:2px 9px;margin-top:5px;text-transform:uppercase">EQUIPO '+esc(n.toUpperCase())+'</div>';}
 /* Config POR JORNADA (j.cfg): cada torneo define su duración/goles/jugadores.
    Mundialito: secsGroup (fase de grupos) y secsKO (eliminatorias). S.cfg = defaults. */
-function jSecs(j){j=j||S.cur;var c=(j&&j.cfg)||{};if(j&&j.tourney&&j.tourney.on){var st=j.nextMatch&&j.nextMatch.stage;var v=(st&&st!=='group')?(c.secsKO||c.secs):(c.secsGroup||c.secs);if(v)return v;}return c.secs||S.cfg.secs||240;}
+function jSecs(j){j=j||S.cur;var c=(j&&j.cfg)||{};if(j&&j.tourney&&j.tourney.on){var st=j.nextMatch&&j.nextMatch.stage;var v;if(st&&st!=='group'){v=(st==='final'?c.secsFinal:st==='third'?c.secsThird:c.secsSemi)||c.secsKO||c.secs;}else{v=c.secsGroup||c.secs;}if(v)return v;}return c.secs||S.cfg.secs||240;}
 function jGoals(j){j=j||S.cur;var c=(j&&j.cfg)||{};return c.goals!=null?c.goals:(S.cfg.goals!=null?S.cfg.goals:2);}
 function jPpt(j){j=j||S.cur;var c=(j&&j.cfg)||{};return c.ppt||S.cfg.ppt||5;}
 const iSt=ts=>{const s={};ts.forEach(t=>{s[t.id]={pts:0,pj:0,w:0,d:0,l:0,gf:0,ga:0};});return s;};
@@ -611,7 +611,7 @@ function tnState(j){
     if(n>=6){
       r.qf1=tnPairInfo(j,'qf1',r.seeds[2],r.seeds[5]);
       r.qf2=tnPairInfo(j,'qf2',r.seeds[3],r.seeds[4]);
-      if(!r.qf1.decided||!r.qf2.decided){r.next=tnPending(r.qf1,r.qf2);return r;}
+      if(!r.qf1.decided||!r.qf2.decided){r.next=T.koFirst==='qf2'?tnPending(r.qf2,r.qf1):tnPending(r.qf1,r.qf2);return r;}
       r.semi1=tnPairInfo(j,'semi1',r.seeds[0],r.qf2.winner);
       r.semi2=tnPairInfo(j,'semi2',r.seeds[1],r.qf1.winner);
     }else{
@@ -619,7 +619,7 @@ function tnState(j){
       r.semi2=tnPairInfo(j,'semi2',r.seeds[1],r.seeds[2]);
     }
   }
-  if(!r.semi1.decided||!r.semi2.decided){r.next=tnPending(r.semi1,r.semi2);return r;}
+  if(!r.semi1.decided||!r.semi2.decided){r.next=T.koFirst==='semi2'?tnPending(r.semi2,r.semi1):tnPending(r.semi1,r.semi2);return r;}
   r.semisDone=true;
   if(T.third==null){r.needThird=true;return r;}
   if(T.third===true){
@@ -734,12 +734,14 @@ function _sbMatchRow(j,m,idx){
   var gls=_sbMatchGoals(j,idx);
   var body;
   if(gls.length){
-    body=gls.map(function(e){var c=_sbTeamColor(j,e.team);
+    body=gls.map(function(e){var c=_sbTeamColor(j,e.team);var gi=(j.events||[]).indexOf(e);
       return'<div style="display:flex;align-items:center;gap:7px;font-size:12px;padding:2px 0">'
         +'<span style="width:7px;height:7px;border-radius:2px;background:'+c+';flex:none"></span>'
         +'<span style="font-weight:600;color:var(--txt)">'+esc(nick(e.player))+'</span>'
         +(e.assist?'<span style="color:var(--txt3);font-size:11px">↳ '+esc(nick(e.assist))+'</span>':'')
-        +'<span style="margin-left:auto;color:var(--gold);font-weight:700;font-variant-numeric:tabular-nums">'+(e.displayTime||(e.min+"′"))+'</span></div>';
+        +'<span style="margin-left:auto;color:var(--gold);font-weight:700;font-variant-numeric:tabular-nums">'+(e.displayTime||(e.min+"′"))+'</span>'
+        +(gi>=0?'<button id="sbge'+gi+'" style="background:transparent;border:1px solid var(--bor);border-radius:6px;color:var(--txt3);font-size:11px;cursor:pointer;padding:2px 7px;font-family:inherit;flex:none" title="Editar gol">✎</button>':'')
+        +'</div>';
     }).join('');
   }else{body='<div style="font-size:12px;color:var(--txt3)">Sin goles registrados.</div>';}
   return head+'<div style="padding:8px 4px 10px;display:flex;flex-direction:column;gap:3px;background:#0000001a;border-bottom:1px solid var(--bor)">'+body+'</div>';
@@ -837,6 +839,58 @@ function mThirdAsk(cb){
   on('t3_si',function(){hmr();cb(true);});
   on('t3_no',function(){hmr();cb(false);});
 }
+// Al iniciar la fase final: elegir qué llave juega primero (cb recibe 'qf1'|'qf2'|'semi1'|'semi2', o null si cancela)
+function mKoOrder(j,cb){
+  var st=tnState(j);if(!st){cb(null);return;}
+  var opts;
+  if(st.qf1&&(!st.qf1.decided||!st.qf2.decided))opts=[['qf1','CUARTOS 1',st.qf1],['qf2','CUARTOS 2',st.qf2]];
+  else opts=[['semi1','SEMIFINAL 1',st.semi1],['semi2','SEMIFINAL 2',st.semi2]];
+  if(!opts[0][2]||!opts[1][2]){cb(opts[0][0]);return;}
+  var legs=tnLegsFor(j.tourney,opts[0][0]);
+  var nm=function(t){if(!t)return'?';var c=tcSafe(tclr(t,j.teams.indexOf(t)));return'<span style="color:'+c+';font-weight:800">'+esc(t.name)+'</span>';};
+  var mr=g('mr');
+  mr.innerHTML='<div class="modal-bg" id="mbb"><div class="modal"><div class="modal-pill"></div><div style="font-size:36px;margin-bottom:4px">▶</div><div style="font-size:11px;color:var(--gold);font-weight:800;letter-spacing:1.5px;margin-bottom:6px">INICIAR FASE FINAL</div><p style="font-size:13px;color:var(--txt2);margin:6px 0 14px">¿Qué partido se juega primero?'+(legs>1?' Como es ida y vuelta, se juega la ida de una llave, después la ida de la otra, y recién ahí las vueltas.':'')+'</p>'
+    +opts.map(function(o,i){return'<button id="ko_'+i+'" class="btn" style="margin-bottom:8px;background:var(--sur2);border:1px solid var(--bor);padding:.7rem 1rem"><div style="font-size:10px;color:var(--gold);font-weight:800;letter-spacing:1px;margin-bottom:3px">'+o[1]+(legs>1?' · IDA':'')+'</div><div style="font-size:14px">'+nm(o[2].a)+' <span style="color:var(--txt3)">vs</span> '+nm(o[2].b)+'</div></button>';}).join('')
+    +'<button id="ko_cancel" class="btn btn-ghost">Cancelar</button></div></div>';
+  opts.forEach(function(o,i){on('ko_'+i,function(){vib(20);hmr();cb(o[0]);});});
+  on('ko_cancel',function(){hmr();cb(null);});
+  g('mbb').onclick=function(e){if(e.target.id==='mbb'){hmr();cb(null);}};
+}
+// Editar goleador/asistencia de un gol ya registrado (gi = índice en j.events)
+function mEditGoal(gi){
+  var cur=S.cur;var e=(cur.events||[])[gi];if(!e||e.type!=='goal')return;
+  var t=cur.teams.find(function(x){return x.id===e.team;});
+  var c=t?tcSafe(tclr(t,cur.teams.indexOf(t))):'var(--gold)';
+  var pls=sbl(((t&&t.players)||[]).filter(Boolean));
+  if(e.player&&pls.indexOf(e.player)<0)pls=[e.player].concat(pls);
+  var hdr='<div class="modal-pill"></div><div style="font-size:11px;color:'+c+';font-weight:800;letter-spacing:1px;margin-bottom:2px">✏️ EDITAR GOL · '+esc(t?t.name:'?')+'</div>';
+  var pick=function(title,list,curVal,noneLbl,onPick){
+    var mr=g('mr');
+    mr.innerHTML='<div class="modal-bg" id="mbge"><div class="modal" style="max-height:88vh">'+hdr+'<div style="font-size:15px;font-weight:700;margin:6px 0 14px">'+title+'</div>'
+      +(noneLbl?'<button id="ge_none" class="btn btn-ghost" style="margin-bottom:8px;font-size:14px;'+(curVal?'':'color:var(--gold);border-color:#fbbf2455')+'">'+noneLbl+'</button>':'')
+      +list.map(function(p,i){var sel=p===curVal;return'<button id="ge'+i+'" class="btn btn-ghost" style="margin-bottom:8px;font-size:14px;'+(sel?'color:var(--gold);border-color:#fbbf2455;font-weight:800':'')+'">'+(sel?'✔ ':'')+esc(nick(p))+'</button>';}).join('')
+      +'<button id="ge_cancel" class="btn btn-ghost" style="color:var(--txt3)">Cancelar</button></div></div>';
+    list.forEach(function(p,i){on('ge'+i,function(){vib(20);onPick(p);});});
+    if(noneLbl)on('ge_none',function(){vib(20);onPick(null);});
+    on('ge_cancel',function(){hmr();});
+    g('mbge').onclick=function(ev){if(ev.target.id==='mbge')hmr();};
+  };
+  pick('¿Quién hizo el gol?',pls,e.player,null,function(np){
+    var aList=pls.filter(function(p){return p!==np;});
+    pick('¿Quién dio la asistencia?',aList,e.assist||null,'Sin asistencia',function(na){
+      var nc=cp(S.cur);var ev=(nc.events||[])[gi];if(!ev){hmr();return;}
+      var op=ev.player;
+      if(np&&np!==op){
+        nc.goals=nc.goals||{};
+        if(op&&nc.goals[op]){nc.goals[op]--;if(nc.goals[op]<=0)delete nc.goals[op];}
+        nc.goals[np]=(nc.goals[np]||0)+1;
+        ev.player=np;
+      }
+      if(na)ev.assist=na;else delete ev.assist;
+      setCur(nc);hmr();render();
+    });
+  });
+}
 function mTieBreak(label,onGolden,onPens){
   var mr=g('mr');
   mr.innerHTML='<div class="modal-bg"><div class="modal"><div class="modal-pill"></div><div style="font-size:36px;margin-bottom:4px">🤝</div><div style="font-size:11px;color:var(--gold);font-weight:800;letter-spacing:1.5px;margin-bottom:4px">EMPATE EN '+esc(label)+'</div><p style="font-size:13px;color:var(--txt2);margin:8px 0 16px">Hay que definirlo. ¿Cómo lo juegan?</p><button id="tb_gold" class="btn btn-gold" style="font-size:15px">⚽ Gol de oro — sigue el partido</button><button id="tb_pens" class="btn btn-ghost" style="color:var(--blue);border-color:#38bdf855">🥅 Penales</button></div></div>';
@@ -879,7 +933,7 @@ function doResultTourney(s){
     if((nm.stage||'group')==='group'&&st.groupDone){
       // grupos completos → resumen + elegir: arrancar la fase final ahora o dejarla en standby
       nc.nextMatch=null;setCur(nc);
-      mGroupDone(nc,function(){var nc2=cp(S.cur);nc2.nextMatch=tnState(nc2).next;setCur(nc2);S.secs=jSecs(nc2);mStartNext(nc2);},function(){go('standby');});
+      mGroupDone(nc,function(){mKoOrder(S.cur,function(first){if(!first){go('standby');return;}var nc2=cp(S.cur);nc2.tourney=Object.assign({},nc2.tourney,{koFirst:first});nc2.nextMatch=tnState(nc2).next;setCur(nc2);S.secs=jSecs(nc2);mStartNext(nc2);});},function(){go('standby');});
       return;
     }
     if(st.needThird){nc.nextMatch=null;setCur(nc);mThirdAsk(function(yes){var nc2=cp(S.cur);nc2.tourney=Object.assign({},nc2.tourney,{third:yes});var st2=tnState(nc2);nc2.nextMatch=st2.next;setCur(nc2);S.secs=jSecs(nc2);mStartNext(nc2);});return;}
@@ -1118,9 +1172,11 @@ function mEditAddPlayer(ti){
     +'<p style="font-size:10px;color:var(--txt2);font-weight:700;letter-spacing:1px;margin-bottom:4px">AGREGAR A</p>'
     +'<div style="font-weight:800;font-size:18px;margin-bottom:14px">'+esc(draft[ti].name||'Equipo '+(ti+1))+'</div>'
     +(avail.length?avail.map(function(p,i){return'<button id="eap'+i+'" class="btn" style="margin-bottom:8px;text-align:left;padding:.6rem 1rem;font-size:15px;font-weight:600;background:var(--sur2);border:1px solid var(--bor);color:var(--txt)">'+esc(nick(p))+'</button>';}).join(''):'<div style="font-size:13px;color:var(--txt3);margin-bottom:12px">No quedan jugadores disponibles. Quitá a alguien de otro equipo para poder moverlo.</div>')
+    +'<button id="eap_new" class="btn btn-ghost" style="border-style:dashed;color:var(--gold);border-color:#fbbf2444">➕ Nuevo jugador (no está en la lista)</button>'
     +'<button id="eap_cancel" class="btn btn-ghost" style="margin-top:4px">Volver</button>'
     +'</div></div>';
   avail.forEach(function(p,i){on('eap'+i,function(){vib(20);_editDraft[ti].players.push(p);mEditTeams();});});
+  on('eap_new',function(){mAdminPin(function(){mNewPlayer(function(n){if(!n){mEditTeams();return;}if(!S.players.includes(n))setPlayers(sbl([...S.players,n]));_editDraft[ti].players.push(n);mEditTeams();});});});
   on('eap_cancel',function(){mEditTeams();});
   g('mbb2').onclick=function(e){if(e.target.id==='mbb2')mEditTeams();};
 }
@@ -1320,10 +1376,21 @@ function vStandby(){
   var cur=S.cur;if(!cur||!isTourney(cur))return'<div class="page"><p>Sin datos.</p></div>';
   var st=tnState(cur);
   if(!st||!st.groupDone){setTimeout(function(){go(cur.nextMatch?'live':'waiting');},50);return'<div class="page"></div>';}
+  var _c=cur.cfg||{};var _koDef=_c.secsKO||_c.secs||480;
+  var _durRow=function(id,lbl,secs){return'<div class="cfg-row"><div><div class="cfg-label">'+lbl+'</div></div><div class="num-ctrl"><button id="'+id+'_m">−</button><span>'+Math.round(secs/60)+' min</span><button id="'+id+'_p">+</button></div></div>';};
+  var _hasQF=!!st.qf1;
+  var ajustesCard='<div class="card"><div style="font-size:11px;color:var(--txt2);font-weight:700;letter-spacing:.5px;margin-bottom:6px">⚙️ AJUSTES DE LA FASE FINAL</div>'
+    +_durRow('sbd_semi',(_hasQF?'Cuartos y semis':'Semifinales'),_c.secsSemi||_koDef)
+    +_durRow('sbd_third','3er puesto',_c.secsThird||_koDef)
+    +_durRow('sbd_final','Final',_c.secsFinal||_koDef)
+    +'<button id="sb_teams" class="gk-btn" style="margin-top:10px">✏️ Editar equipos y colores</button>'
+    +'<div style="font-size:11px;color:var(--txt3);margin-top:8px">Para corregir un gol o una asistencia, abrí el partido en la lista de abajo y tocá ✎.</div>'
+    +'</div>';
   return'<div class="page">'
     +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem"><button id="sbhm" class="sbb">←</button><div style="flex:1"><div style="font-weight:700;font-size:16px">🌎 '+esc(cur.theme||'Mundialito Pachanguero')+'</div><div style="font-size:11px;color:var(--txt3)">Fase de grupos completa · fase final pendiente</div></div></div>'
     +'<div class="card" style="text-align:center;border-color:#fbbf2455;background:#3d280012;padding:1.1rem"><div style="font-size:32px">⏸</div><div style="font-size:12px;color:var(--gold);font-weight:800;letter-spacing:1px;margin-top:4px">FASE FINAL EN STANDBY</div><div style="font-size:12px;color:var(--txt2);margin-top:6px">La fase de grupos terminó. La fase final se puede jugar ahora o cuando quieran — el mundialito queda guardado tal cual está.</div></div>'
     +(cur.mvpGroups?'<div class="card" style="text-align:center;padding:1rem"><div style="font-size:26px">⭐</div><div style="color:var(--gold);font-weight:700;font-size:10px;letter-spacing:1px;margin-top:2px">MVP DE LA FASE DE GRUPOS</div><div style="font-size:18px;font-weight:800;margin-top:4px">'+esc(nick(cur.mvpGroups))+'</div><button id="sb_mvp" style="background:transparent;border:none;color:var(--txt3);font-size:12px;cursor:pointer;margin-top:6px;font-family:inherit">Cambiar MVP</button></div>':'<button id="sb_mvp" class="btn btn-ghost" style="border-color:#fbbf2444;color:var(--gold);margin-bottom:.75rem">⭐ Elegir MVP de la fase de grupos</button>')
+    +ajustesCard
     +'<div class="card"><div style="font-size:11px;color:var(--txt2);font-weight:700;letter-spacing:.5px;margin-bottom:10px">FASE DE GRUPOS</div>'+tnTablesHTML(cur,null)+'</div>'
     +'<div class="card"><div style="font-size:11px;color:var(--txt2);font-weight:700;letter-spacing:.5px;margin-bottom:10px">⚽ GOLEADORES</div>'+_sbScorersHTML(cur)+'</div>'
     +'<div class="card"><div style="font-size:11px;color:var(--txt2);font-weight:700;letter-spacing:.5px;margin-bottom:10px">🅰 ASISTIDORES</div>'+_sbAssistsHTML(cur)+'</div>'
@@ -1671,11 +1738,18 @@ function attach(){
     on('sbhm',()=>go('home'));on('sb_back',()=>go('home'));
     on('sb_mvp',function(){var pl=[...new Set(S.cur.teams.flatMap(function(t){return(t.players||[]).filter(function(p){return p&&p.trim();});}))];mMVP(pl,function(p){var nc=cp(S.cur);nc.mvpGroups=p;setCur(nc);render();});});
     (S.cur.matches||[]).forEach(function(m,idx){if(m.stage&&m.stage!=='group')return;on('sbm'+idx,function(){_sbExp[idx]=!_sbExp[idx];render();});});
+    (S.cur.events||[]).forEach(function(e,gi){if(e.type==='goal')on('sbge'+gi,function(){mEditGoal(gi);});});
+    on('sb_teams',function(){mEditTeams();});
+    var _sbDur=function(key,delta){var nc=cp(S.cur);nc.cfg=nc.cfg||{};var base=nc.cfg[key]||nc.cfg.secsKO||nc.cfg.secs||480;var m=Math.max(1,Math.min(60,Math.round(base/60)+delta));nc.cfg[key]=m*60;setCur(nc);render();};
+    [['sbd_semi','secsSemi'],['sbd_third','secsThird'],['sbd_final','secsFinal']].forEach(function(d){on(d[0]+'_m',function(){_sbDur(d[1],-1);});on(d[0]+'_p',function(){_sbDur(d[1],1);});});
     on('sb_go',function(){
-      mConfirm('¿Iniciar la fase final?','Arrancan las semifinales: 1° vs 4° y 2° vs 3°. Si fue sin querer, podés salir al inicio y queda en standby.',function(){
-        var nc=cp(S.cur);var st=tnState(nc);if(!st||!st.next)return;
+      mKoOrder(S.cur,function(first){
+        if(!first)return;
+        var nc=cp(S.cur);
+        nc.tourney=Object.assign({},nc.tourney,{koFirst:first});
+        var st=tnState(nc);if(!st||!st.next)return;
         nc.nextMatch=st.next;setCur(nc);S.score=[0,0];S.secs=jSecs(nc);mStartNext(nc);
-      },'▶ Iniciar','btn-green');
+      });
     });
   }
   if(v==='end'){
